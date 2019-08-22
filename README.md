@@ -24,7 +24,7 @@ The console is a more friendly `kubectl` in the form of a single page webapp.  I
 
 ### Build everything:
 
-This project uses uses [Go modules](https://github.com/golang/go/wiki/Modules),
+This project uses [Go modules](https://github.com/golang/go/wiki/Modules),
 so you should clone the project outside of your `GOPATH`. To build both the
 frontend and backend, run:
 
