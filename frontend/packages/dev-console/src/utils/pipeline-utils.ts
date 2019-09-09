@@ -111,7 +111,7 @@ const appendPipelineRunStatus = (pipeline, pipelineRun) => {
     // append task status
     if (!mTask.status) {
       mTask.status = { reason: 'Idle' };
-    } else if (mTask.status && mTask.status.conditions) {
+    } else if (mTask.status && mTask.status.conditions && mTask.status.conditions.length > 0) {
       const statusCondition = mTask.status.conditions.pop();
       switch (statusCondition.status) {
         case 'True':
