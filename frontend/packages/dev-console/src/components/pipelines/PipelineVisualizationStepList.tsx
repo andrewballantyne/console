@@ -12,8 +12,7 @@ export interface PipelineVisualizationStepListProps {
   steps: StepStatus[];
 }
 
-const TooltipColoredStatusIcon = ({ status }) => {
-  const size = 18;
+export const TooltipColoredStatusIcon = ({ size = 18, status }) => {
   const sharedProps = {
     height: size,
     width: size,
