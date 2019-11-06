@@ -28,14 +28,8 @@ const PipelineRunHeader = () => {
       props: { className: tableColumnClasses[3] },
     },
     {
-      title: 'Duration',
-      sortField: 'status.completionTime',
-      transforms: [sortable],
-      props: { className: tableColumnClasses[4] },
-    },
-    {
       title: '',
-      props: { className: tableColumnClasses[5] },
+      props: { className: tableColumnClasses[4] },
     },
   ];
 };
