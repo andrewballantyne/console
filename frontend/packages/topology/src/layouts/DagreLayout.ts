@@ -7,8 +7,14 @@ import { leafNodeElements } from '../utils/element-utils';
 class DagreNode {
   private node: Node;
 
+  public width: number;
+  public height: number;
+
   constructor(node: Node) {
     this.node = node;
+
+    this.width = this.node.getBounds().width;
+    this.height = this.node.getBounds().height;
   }
 
   getId(): string {
@@ -91,10 +97,12 @@ export default class DagreLayout implements Layout {
 
     const graph = new dagre.graphlib.Graph({ compound: true });
     graph.setGraph({
-      marginx: 0,
-      marginy: 0,
-      nodesep: 20,
+      marginx: 10,
+      marginy: 10,
+      ranksep: 20,
       ranker: 'tight-tree',
+      rankdir: 'RL',
+      align: 'UL',
     });
 
     _.forEach(nodes, (node) => {
