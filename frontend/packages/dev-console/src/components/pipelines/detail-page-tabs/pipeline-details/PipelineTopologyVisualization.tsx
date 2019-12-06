@@ -48,14 +48,25 @@ const MyEdge: React.FC<MyEdgeProps> = ({ element }) => {
   const startPoint = element.getStartPoint();
   const endPoint = element.getEndPoint();
 
+  const pathPoints = [];
+  pathPoints.push(`${startPoint.x},${startPoint.y}`);
+  if (startPoint.y !== endPoint.y) {
+    // Different levels, bend up to the line
+    const d = startPoint.x > endPoint.x ? -1 : 1;
+    const bendDistance = Math.floor(Math.abs(startPoint.x - endPoint.x) / 2);
+    pathPoints.push(
+      `${startPoint.x + bendDistance * d},${startPoint.y}`,
+      `${endPoint.x - bendDistance * d},${endPoint.y}`,
+    );
+  }
+  pathPoints.push(`${endPoint.x},${endPoint.y}`);
+
   return (
-    <line
+    <polyline
       stroke={element.getData().color}
       strokeWidth={lineThickness}
-      x1={startPoint.x}
-      y1={startPoint.y}
-      x2={endPoint.x}
-      y2={endPoint.y}
+      points={pathPoints.join(' ')}
+      fill="none"
     />
   );
 };
@@ -102,7 +113,7 @@ const layoutFactory: LayoutFactory = (type: string, graph: Graph) => {
     case 'Dagre-default':
       return new DagreLayout(graph);
     case 'Dagre-custom':
-      return new DagreCustomLayout(graph);
+      return new DagreCustomLayout(graph, { ranker: 'tight-tree' });
     case 'Dagre-inverse':
       return new DagreLayout(graph, { rankdir: 'RL' });
     default:
@@ -231,9 +242,8 @@ const DagreVisualization = ({ dagreVariant = 'default', pipeline }) => {
 const styles = {
   background: '#eee',
   borderRadius: 20,
-  overflow: 'hidden',
-  height: 100,
   fontSize: 12,
+  overflow: 'hidden',
 };
 
 const PipelineTopologyVisualization = ({ pipeline }) => {
@@ -249,7 +259,7 @@ const PipelineTopologyVisualization = ({ pipeline }) => {
         <DagreVisualization dagreVariant="custom" pipeline={pipeline} />
       </div>
       <br />
-      <p>Topology w/ Dagre Layout (Inverse Edges)</p>
+      <p>Topology w/ Dagre Layout (Inverse Edge Direction)</p>
       <div style={styles}>
         <DagreVisualization dagreVariant="inverse" pipeline={pipeline} />
       </div>
