@@ -202,14 +202,17 @@ const pipelineToNodesAndEdges = (pipeline, mapForNode) => {
 };
 
 const DagreVisualization = ({ dagreVariant = 'default', pipeline }) => {
-  const ref = React.useRef(null);
-  React.useEffect(() => {
-    ref.current = pipelineToNodesAndEdges(pipeline, (columnNodes) => {
-      return columnNodes.map(makeNode);
-    });
-  }, [pipeline]);
+  const items = pipelineToNodesAndEdges(pipeline, (columnNodes) => {
+    return columnNodes.map(makeNode);
+  });
 
-  if (!ref.current) return null;
+  if (dagreVariant === 'inverse') {
+    items.edges = items.edges.map((edge) => ({
+      ...edge,
+      source: edge.target,
+      target: edge.source,
+    }));
+  }
 
   return (
     <PipelineTest
@@ -218,44 +221,22 @@ const DagreVisualization = ({ dagreVariant = 'default', pipeline }) => {
           type: 'graph',
           layout: `Dagre-${dagreVariant}`,
         },
-        nodes: ref.current.nodes,
-        edges: ref.current.edges,
+        nodes: items.nodes,
+        edges: items.edges,
       }}
     />
   );
 };
 
-const InverseDagreVisualization = ({ pipeline }) => {
-  const ref = React.useRef(null);
-  React.useEffect(() => {
-    ref.current = pipelineToNodesAndEdges(pipeline, (columnNodes) => {
-      return columnNodes.map(makeNode);
-    });
-  }, [pipeline]);
-
-  if (!ref.current) return null;
-
-  return (
-    <PipelineTest
-      model={{
-        graph: {
-          type: 'graph',
-          layout: 'Dagre-inverse',
-        },
-        nodes: ref.current.nodes,
-        edges: ref.current.edges.map((edge) => ({
-          ...edge,
-          source: edge.target,
-          target: edge.source,
-        })),
-      }}
-    />
-  );
+const styles = {
+  background: '#eee',
+  borderRadius: 20,
+  overflow: 'hidden',
+  height: 100,
+  fontSize: 12,
 };
 
-const styles = { background: '#eee', border: '1px solid black', fontSize: 12 };
-
-export const PipelineVisualization = ({ pipeline }) => {
+const PipelineTopologyVisualization = ({ pipeline }) => {
   return (
     <>
       <p>Topology w/ Dagre Layout</p>
@@ -270,9 +251,11 @@ export const PipelineVisualization = ({ pipeline }) => {
       <br />
       <p>Topology w/ Dagre Layout (Inverse Edges)</p>
       <div style={styles}>
-        <InverseDagreVisualization pipeline={pipeline} />
+        <DagreVisualization dagreVariant="inverse" pipeline={pipeline} />
       </div>
       <br />
     </>
   );
 };
+
+export default PipelineTopologyVisualization;
