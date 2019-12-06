@@ -99,8 +99,9 @@ export default class DagreLayout implements Layout {
     graph.setGraph({
       marginx: 10,
       marginy: 10,
+      nodesep: 20,
       ranksep: 20,
-      ranker: 'tight-tree',
+      ranker: 'longest-path',
       rankdir: 'RL',
       align: 'UL',
     });

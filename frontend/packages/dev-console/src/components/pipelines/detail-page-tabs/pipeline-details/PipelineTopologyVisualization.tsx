@@ -16,6 +16,9 @@ import { Edge as EdgeType, Node as NodeType } from '../../../topology/topology-t
 import { getPipelineTasks } from '../../../../utils/pipeline-utils';
 import './PipelineVisualizationTask.scss';
 
+const useDefaultColor = true;
+const lineThickness = useDefaultColor ? 1 : 2;
+
 type MyNodeType = {
   element: Node;
 };
@@ -23,17 +26,12 @@ type MyNodeType = {
 const MyNode: React.FC<MyNodeType> = ({ element }) => {
   const { height, width } = element.getBounds();
 
-  // return (
-  //   <g>
-  //     <rect stroke="#000000" fill="#cccccc" rx={10} ry={10} width={width} height={height} />
-  //     <text x={width / 2} y={height / 2} textAnchor="middle">
-  //       {element.getData().name}
-  //     </text>
-  //   </g>
-  // );
   return (
     <foreignObject width={width} height={height}>
-      <div className="odc-pipeline-vis-task__content">
+      <div
+        className="odc-pipeline-vis-task__content"
+        style={{ borderColor: element.getData().color, borderWidth: lineThickness }}
+      >
         <div className="odc-pipeline-vis-task__title-wrapper is-text-center">
           <div className="odc-pipeline-vis-task__title">{element.getData().name}</div>
         </div>
@@ -52,8 +50,8 @@ const MyEdge: React.FC<MyEdgeProps> = ({ element }) => {
 
   return (
     <line
-      stroke="var(--pf-global--BorderColor--light-100)"
-      strokeWidth={1}
+      stroke={element.getData().color}
+      strokeWidth={lineThickness}
       x1={startPoint.x}
       y1={startPoint.y}
       x2={endPoint.x}
@@ -100,8 +98,50 @@ const PipelineTest: React.FC<any> = ({ model }) => {
   return <VisualizationSurface visualization={ref.current} />;
 };
 
-const WIDTH = 140;
-const HEIGHT = 35;
+const colorList = [
+  'green',
+  'blue',
+  'orange',
+  'maroon',
+  'red',
+  'magenta',
+  'black',
+  'olive',
+  'purple',
+];
+let i = 0;
+
+const colors = {};
+const getColor = (id) => {
+  if (useDefaultColor) {
+    return 'var(--pf-global--BorderColor--light-100)';
+  }
+
+  if (colors[id]) {
+    return colors[id];
+  }
+
+  const color = colorList[i++];
+  colors[id] = color;
+
+  if (i >= colorList.length) {
+    i = 0;
+  }
+
+  return color;
+};
+
+const WIDTH = 120;
+const HEIGHT = 30;
+const makeNode = (node) => ({
+  data: {
+    ...node,
+    color: getColor(node.name),
+  },
+  id: node.name,
+  width: WIDTH,
+  height: HEIGHT,
+});
 
 const pipelineToNodesAndEdges = (pipeline, mapForNode) => {
   const graph = getPipelineTasks(pipeline);
@@ -121,6 +161,7 @@ const pipelineToNodesAndEdges = (pipeline, mapForNode) => {
           type: 'edge',
           source: sourceId,
           target: targetId,
+          data: { color: getColor(sourceId) },
         }));
       })
       .filter((e) => !!e),
@@ -138,12 +179,9 @@ const SimpleVisualization = ({ pipeline }) => {
     ref.current = pipelineToNodesAndEdges(pipeline, (columnNodes, col) => {
       return columnNodes.map((node, row) => {
         return {
-          data: node,
-          id: node.name,
+          ...makeNode(node),
           x: 10 + col * WIDTH + col * 20,
           y: 10 + row * HEIGHT + row * 20,
-          width: WIDTH,
-          height: HEIGHT,
         };
       });
     });
@@ -155,7 +193,6 @@ const SimpleVisualization = ({ pipeline }) => {
     <PipelineTest
       model={{
         graph: {
-          id: 'g1',
           type: 'graph',
         },
         nodes: ref.current.nodes,
@@ -169,14 +206,7 @@ const DagreVisualization = ({ pipeline }) => {
   const ref = React.useRef(null);
   React.useEffect(() => {
     ref.current = pipelineToNodesAndEdges(pipeline, (columnNodes) => {
-      return columnNodes.map((node) => {
-        return {
-          data: node,
-          id: node.name,
-          width: WIDTH,
-          height: HEIGHT,
-        };
-      });
+      return columnNodes.map(makeNode);
     });
   }, [pipeline]);
 
