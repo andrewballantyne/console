@@ -73,10 +73,38 @@ const componentFactory: ComponentFactory = (kind: ModelKind) => {
   }
 };
 
+class DagreCustomLayout extends DagreLayout {
+  layout() {
+    super.layout();
+
+    const nodes = this.graph.getNodes();
+    const firstNodes = nodes.filter((node) => {
+      const data = node.getData();
+      return !data.runAfter;
+    });
+    if (firstNodes.length === 1) {
+      return;
+    }
+
+    const firstNodeX = firstNodes.reduce(
+      (acc, node) => Math.min(node.getBounds().x, acc),
+      Infinity,
+    );
+    firstNodes.map((node) => {
+      node.getBounds().setLocation(firstNodeX, node.getBounds().y);
+      return node;
+    });
+  }
+}
+
 const layoutFactory: LayoutFactory = (type: string, graph: Graph) => {
   switch (type) {
-    case 'Dagre':
+    case 'Dagre-default':
       return new DagreLayout(graph);
+    case 'Dagre-custom':
+      return new DagreCustomLayout(graph);
+    case 'Dagre-inverse':
+      return new DagreLayout(graph, { rankdir: 'RL' });
     default:
       return undefined;
   }
@@ -151,17 +179,17 @@ const pipelineToNodesAndEdges = (pipeline, mapForNode) => {
   const edges: EdgeType[] = _.flatten(
     flatNodes
       .map((node) => {
-        const sourceId = node.id;
-        const targetIds = (node.data as any).runAfter || [];
+        const thisId = node.id;
+        const beforeIds = (node.data as any).runAfter || [];
 
-        if (targetIds.length === 0) return null;
+        if (beforeIds.length === 0) return null;
 
-        return targetIds.map((targetId) => ({
-          id: `e${sourceId}-${targetId}`,
+        return beforeIds.map((beforeId) => ({
+          id: `e${thisId}-${beforeId}`,
           type: 'edge',
-          source: sourceId,
-          target: targetId,
-          data: { color: getColor(sourceId) },
+          source: beforeId,
+          target: thisId,
+          data: { color: getColor(thisId) },
         }));
       })
       .filter((e) => !!e),
@@ -173,36 +201,7 @@ const pipelineToNodesAndEdges = (pipeline, mapForNode) => {
   };
 };
 
-const SimpleVisualization = ({ pipeline }) => {
-  const ref = React.useRef(null);
-  React.useEffect(() => {
-    ref.current = pipelineToNodesAndEdges(pipeline, (columnNodes, col) => {
-      return columnNodes.map((node, row) => {
-        return {
-          ...makeNode(node),
-          x: 10 + col * WIDTH + col * 20,
-          y: 10 + row * HEIGHT + row * 20,
-        };
-      });
-    });
-  }, [pipeline]);
-
-  if (!ref.current) return null;
-
-  return (
-    <PipelineTest
-      model={{
-        graph: {
-          type: 'graph',
-        },
-        nodes: ref.current.nodes,
-        edges: ref.current.edges,
-      }}
-    />
-  );
-};
-
-const DagreVisualization = ({ pipeline }) => {
+const DagreVisualization = ({ dagreVariant = 'default', pipeline }) => {
   const ref = React.useRef(null);
   React.useEffect(() => {
     ref.current = pipelineToNodesAndEdges(pipeline, (columnNodes) => {
@@ -216,12 +215,39 @@ const DagreVisualization = ({ pipeline }) => {
     <PipelineTest
       model={{
         graph: {
-          id: 'g1',
           type: 'graph',
-          layout: 'Dagre',
+          layout: `Dagre-${dagreVariant}`,
         },
         nodes: ref.current.nodes,
         edges: ref.current.edges,
+      }}
+    />
+  );
+};
+
+const InverseDagreVisualization = ({ pipeline }) => {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    ref.current = pipelineToNodesAndEdges(pipeline, (columnNodes) => {
+      return columnNodes.map(makeNode);
+    });
+  }, [pipeline]);
+
+  if (!ref.current) return null;
+
+  return (
+    <PipelineTest
+      model={{
+        graph: {
+          type: 'graph',
+          layout: 'Dagre-inverse',
+        },
+        nodes: ref.current.nodes,
+        edges: ref.current.edges.map((edge) => ({
+          ...edge,
+          source: edge.target,
+          target: edge.source,
+        })),
       }}
     />
   );
@@ -232,15 +258,21 @@ const styles = { background: '#eee', border: '1px solid black', fontSize: 12 };
 export const PipelineVisualization = ({ pipeline }) => {
   return (
     <>
-      <p>Topology w/ Default Structure</p>
-      <div style={styles}>
-        <SimpleVisualization pipeline={pipeline} />
-      </div>
-      <br />
       <p>Topology w/ Dagre Layout</p>
       <div style={styles}>
         <DagreVisualization pipeline={pipeline} />
       </div>
+      <br />
+      <p>Topology w/ Custom Dagre Layout</p>
+      <div style={styles}>
+        <DagreVisualization dagreVariant="custom" pipeline={pipeline} />
+      </div>
+      <br />
+      <p>Topology w/ Dagre Layout (Inverse Edges)</p>
+      <div style={styles}>
+        <InverseDagreVisualization pipeline={pipeline} />
+      </div>
+      <br />
     </>
   );
 };

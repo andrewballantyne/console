@@ -76,17 +76,18 @@ class DagreEdge {
 }
 
 export default class DagreLayout implements Layout {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-  // @ts-ignore
-  private graph: Graph; // Usage is TBD
+  protected graph: Graph; // Usage is TBD
 
-  constructor(graph: Graph) {
+  protected graphOptions: any;
+
+  constructor(graph: Graph, graphOptions = {}) {
     this.graph = graph;
+    this.graphOptions = graphOptions;
   }
 
   destroy(): void {}
 
-  layout = () => {
+  public layout() {
     const nodes: DagreNode[] = leafNodeElements(this.graph.getNodes()).map(
       (node: GraphElement) => new DagreNode(node as Node),
     );
@@ -101,9 +102,11 @@ export default class DagreLayout implements Layout {
       marginy: 10,
       nodesep: 20,
       ranksep: 20,
+      edgesep: 20,
       ranker: 'longest-path',
-      rankdir: 'RL',
+      rankdir: 'LR',
       align: 'UL',
+      ...this.graphOptions,
     });
 
     _.forEach(nodes, (node) => {
@@ -124,5 +127,5 @@ export default class DagreLayout implements Layout {
         );
       }
     });
-  };
+  }
 }
