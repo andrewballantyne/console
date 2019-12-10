@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as _ from 'lodash';
+import { observer } from 'mobx-react';
 import {
   ComponentFactory,
   DagreLayout,
@@ -12,71 +13,94 @@ import {
   Visualization,
   VisualizationSurface,
 } from '@console/topology/src';
+import { k8sGet } from '@console/internal/module/k8s';
 import { Edge as EdgeType, Node as NodeType } from '../../../topology/topology-types';
 import { getPipelineTasks } from '../../../../utils/pipeline-utils';
 import './PipelineVisualizationTask.scss';
+import { PipelineModel } from '../../../../models';
+import { pipelineRunFilterReducer } from '../../../../utils/pipeline-filter-reducer';
+import { PipelineVisualizationTask } from './PipelineVisualizationTask';
 
 const useDefaultColor = true;
 const lineThickness = useDefaultColor ? 1 : 2;
 
-type MyNodeType = {
-  element: Node;
-};
-
-const MyNode: React.FC<MyNodeType> = ({ element }) => {
+const MyNode: React.FC<{ element: Node }> = ({ element }) => {
   const { height, width } = element.getBounds();
+  const { color, node: task, pipeline } = element.getData();
+  const reuseExisting = pipeline && pipeline.latestRun;
+
+  let node = null;
+  if (reuseExisting) {
+    node = (
+      <PipelineVisualizationTask
+        pipelineRun={pipeline.latestRun}
+        task={task}
+        pipelineRunStatus={pipelineRunFilterReducer(pipeline.latestRun)}
+        namespace={pipeline.metadata.namespace}
+      />
+    );
+  } else {
+    node = (
+      <div
+        className="odc-pipeline-vis-task__content"
+        style={{ borderColor: color, borderWidth: lineThickness }}
+      >
+        <div className="odc-pipeline-vis-task__title-wrapper is-text-center">
+          <div className="odc-pipeline-vis-task__title">{task.name}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <foreignObject width={width} height={height}>
-      <div
-        className="odc-pipeline-vis-task__content"
-        style={{ borderColor: element.getData().color, borderWidth: lineThickness }}
-      >
-        <div className="odc-pipeline-vis-task__title-wrapper is-text-center">
-          <div className="odc-pipeline-vis-task__title">{element.getData().name}</div>
-        </div>
-      </div>
+      {node}
     </foreignObject>
   );
 };
 
-type MyEdgeProps = {
-  element: Edge;
-};
-
-const MyEdge: React.FC<MyEdgeProps> = ({ element }) => {
+const MyEdge: React.FC<{ element: Edge }> = ({ element }) => {
   const startPoint = element.getStartPoint();
   const endPoint = element.getEndPoint();
 
-  const pathPoints = [];
-  pathPoints.push(`${startPoint.x},${startPoint.y}`);
+  const linePoints = [];
+  linePoints.push(`M ${startPoint.x},${startPoint.y}`);
   if (startPoint.y !== endPoint.y) {
     // Different levels, bend up to the line
     const d = startPoint.x > endPoint.x ? -1 : 1;
     const bendDistance = Math.floor(Math.abs(startPoint.x - endPoint.x) / 2);
-    pathPoints.push(
-      `${startPoint.x + bendDistance * d},${startPoint.y}`,
-      `${endPoint.x - bendDistance * d},${endPoint.y}`,
-    );
+    const distance = 0.9;
+
+    const point1X = startPoint.x + bendDistance * d;
+    const cornerPointPre1 = `${point1X * distance},${startPoint.y}`;
+    const cornerPoint1 = `${point1X},${startPoint.y}`;
+    const cornerPointPost1 = `${point1X},${(startPoint.y - endPoint.y) * distance + endPoint.y}`;
+    linePoints.push(`L ${cornerPointPre1} Q ${cornerPoint1} ${cornerPointPost1}`);
+
+    const cornerPointB = `${endPoint.x - bendDistance * d},${endPoint.y}`;
+
+    linePoints.push(`L ${cornerPointB}`);
   }
-  pathPoints.push(`${endPoint.x},${endPoint.y}`);
+  linePoints.push(`L ${endPoint.x},${endPoint.y}`);
 
   return (
-    <polyline
+    <path
+      d={linePoints.join(' ')}
       stroke={element.getData().color}
       strokeWidth={lineThickness}
-      points={pathPoints.join(' ')}
       fill="none"
     />
   );
 };
+
+const ObservedNode = observer(MyNode);
 
 const componentFactory: ComponentFactory = (kind: ModelKind) => {
   switch (kind) {
     case ModelKind.graph:
       return GraphComponent;
     case ModelKind.node:
-      return MyNode;
+      return ObservedNode;
     case ModelKind.edge:
       return MyEdge;
     default:
@@ -129,6 +153,10 @@ const PipelineTest: React.FC<any> = ({ model }) => {
       ref.current.registerLayoutFactory(layoutFactory);
       ref.current.registerComponentFactory(componentFactory);
     }
+    // console.debug(
+    //   '++++++\n',
+    //   model.nodes.map((n) => `${n.id}: ${_.get(n, 'data.node.status.reason')}`).join(',\n'),
+    // );
     ref.current.fromModel(model);
   }, [model]);
 
@@ -174,7 +202,7 @@ const WIDTH = 120;
 const HEIGHT = 30;
 const makeNode = (node) => ({
   data: {
-    ...node,
+    node,
     color: getColor(node.name),
   },
   id: node.name,
@@ -183,15 +211,18 @@ const makeNode = (node) => ({
 });
 
 const pipelineToNodesAndEdges = (pipeline, mapForNode) => {
-  const graph = getPipelineTasks(pipeline);
+  const graph = getPipelineTasks(pipeline, pipeline.latestRun);
   const graphColumns: NodeType[][] = graph.map(mapForNode);
-  const flatNodes: NodeType[] = _.flatten(graphColumns);
+  const flatNodes: NodeType[] = _.flatten(graphColumns).map((n) => ({
+    ...n,
+    data: { ...n.data, pipeline },
+  }));
 
   const edges: EdgeType[] = _.flatten(
     flatNodes
       .map((node) => {
         const thisId = node.id;
-        const beforeIds = (node.data as any).runAfter || [];
+        const beforeIds = ((node.data as any).node as any).runAfter || [];
 
         if (beforeIds.length === 0) return null;
 
@@ -212,6 +243,18 @@ const pipelineToNodesAndEdges = (pipeline, mapForNode) => {
   };
 };
 
+const getTitle = (variant) => {
+  switch (variant) {
+    case 'custom':
+      return 'Topology w/ Custom Dagre Layout';
+    case 'inverse':
+      return 'Topology w/ Dagre Layout (Inverse Edge Direction)';
+    case 'default':
+    default:
+      return 'Topology w/ Dagre Layout';
+  }
+};
+
 const DagreVisualization = ({ dagreVariant = 'default', pipeline }) => {
   const items = pipelineToNodesAndEdges(pipeline, (columnNodes) => {
     return columnNodes.map(makeNode);
@@ -225,47 +268,56 @@ const DagreVisualization = ({ dagreVariant = 'default', pipeline }) => {
     }));
   }
 
+  const title = getTitle(dagreVariant);
+
   return (
-    <PipelineTest
-      model={{
-        graph: {
-          type: 'graph',
-          layout: `Dagre-${dagreVariant}`,
-        },
-        nodes: items.nodes,
-        edges: items.edges,
-      }}
-    />
+    <div style={{ marginBottom: 15 }}>
+      {title && <p>{title}</p>}
+      <div
+        style={{
+          background: '#eee',
+          borderRadius: 20,
+          fontSize: 12,
+          overflow: 'hidden',
+        }}
+      >
+        <PipelineTest
+          model={{
+            graph: {
+              type: 'graph',
+              layout: `Dagre-${dagreVariant}`,
+            },
+            nodes: items.nodes,
+            edges: items.edges,
+          }}
+        />
+      </div>
+    </div>
   );
 };
 
-const styles = {
-  background: '#eee',
-  borderRadius: 20,
-  fontSize: 12,
-  overflow: 'hidden',
-};
-
-const PipelineTopologyVisualization = ({ pipeline }) => {
+export const PipelineTopologyVisualization = ({ pipeline }) => {
   return (
     <>
-      <p>Topology w/ Dagre Layout</p>
-      <div style={styles}>
-        <DagreVisualization pipeline={pipeline} />
-      </div>
-      <br />
-      <p>Topology w/ Custom Dagre Layout</p>
-      <div style={styles}>
-        <DagreVisualization dagreVariant="custom" pipeline={pipeline} />
-      </div>
-      <br />
-      <p>Topology w/ Dagre Layout (Inverse Edge Direction)</p>
-      <div style={styles}>
-        <DagreVisualization dagreVariant="inverse" pipeline={pipeline} />
-      </div>
-      <br />
+      <DagreVisualization pipeline={pipeline} />
+      <DagreVisualization dagreVariant="custom" pipeline={pipeline} />
+      <DagreVisualization dagreVariant="inverse" pipeline={pipeline} />
     </>
   );
 };
 
-export default PipelineTopologyVisualization;
+export const PipelineRunTopologyVisualization = ({ pipelineRun }) => {
+  const [pipeline, setPipeline] = React.useState(null);
+
+  React.useEffect(() => {
+    k8sGet(PipelineModel, pipelineRun.spec.pipelineRef.name, pipelineRun.metadata.namespace)
+      .then((res) => {
+        setPipeline(res);
+      })
+      .catch(console.error);
+  });
+
+  if (!pipeline) return null;
+
+  return <DagreVisualization pipeline={{ ...pipeline, latestRun: pipelineRun }} />;
+};

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { SectionHeading, ResourceSummary, ResourceLink } from '@console/internal/components/utils';
 import { referenceForModel } from '@console/internal/module/k8s';
 import { Pipeline, getResourceModelFromTask } from '../../../../utils/pipeline-augment';
-import PipelineTopologyVisualization from './PipelineTopologyVisualization';
+import { PipelineTopologyVisualization } from './PipelineTopologyVisualization';
 import { PipelineVisualization } from './PipelineVisualization';
 
 interface PipelineDetailsProps {
