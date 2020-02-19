@@ -1,9 +1,25 @@
 import { history, resourcePathFromModel } from '@console/internal/components/utils';
 import { apiVersionForModel, referenceForModel } from '@console/internal/module/k8s';
 import { ClusterTaskModel, PipelineModel } from '../../../models';
-import { Pipeline, PipelineResourceTask, PipelineTask } from '../../../utils/pipeline-augment';
+import {
+  Pipeline,
+  PipelineResourceTask,
+  PipelineTask,
+  PipelineTaskRef,
+} from '../../../utils/pipeline-augment';
 import { TASK_ERROR_STRINGS, TaskErrorType } from './const';
 import { PipelineBuilderFormikValues, PipelineBuilderFormValues, TaskErrorMap } from './types';
+
+export const findRelatedTask = (
+  clusterTasks: PipelineResourceTask[],
+  namespacedTasks: PipelineResourceTask[],
+  taskRef: PipelineTaskRef,
+) => {
+  if (taskRef.kind === ClusterTaskModel.kind) {
+    return clusterTasks.find((task) => task.metadata.name === taskRef.name);
+  }
+  return namespacedTasks.find((task) => task.metadata.name === taskRef.name);
+};
 
 export const getErrorMessage = (errorTypes: TaskErrorType[], errorMap: TaskErrorMap) => (
   taskName: string,

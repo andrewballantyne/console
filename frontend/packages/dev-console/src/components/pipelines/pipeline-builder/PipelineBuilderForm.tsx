@@ -38,8 +38,6 @@ type PipelineBuilderFormProps = FormikProps<FormikValues> & {
 };
 
 const PipelineBuilderForm: React.FC<PipelineBuilderFormProps> = (props) => {
-  const [selectedTask, setSelectedTask] = React.useState<SelectedBuilderTask>(null);
-
   const {
     existingPipeline,
     status,
@@ -53,8 +51,14 @@ const PipelineBuilderForm: React.FC<PipelineBuilderFormProps> = (props) => {
     setStatus,
     values,
   } = props;
+
+  const [selectedTask, setSelectedTask] = React.useState<SelectedBuilderTask>(null);
   const statusRef = React.useRef(status);
   statusRef.current = status;
+
+  console.debug('errors', errors);
+  console.debug('status', status);
+  console.debug('values', values);
 
   const updateErrors: UpdateErrors = React.useCallback(
     (taskErrors) => {
@@ -104,8 +108,8 @@ const PipelineBuilderForm: React.FC<PipelineBuilderFormProps> = (props) => {
           <div>
             <h2>Tasks</h2>
             <PipelineBuilderVisualization
-              namespace={namespace}
-              tasksInError={status?.tasks || {}}
+              clusterTasks={values.clusterTasks}
+              namespacedTasks={values.namespacedTasks}
               onTaskSelection={(task, resource) => {
                 setSelectedTask({
                   taskIndex: values.tasks.findIndex(({ name }) => name === task.name),
@@ -115,6 +119,7 @@ const PipelineBuilderForm: React.FC<PipelineBuilderFormProps> = (props) => {
               onUpdateTasks={(updatedTaskGroup, op) =>
                 updateTasks(applyChange(updatedTaskGroup, op))
               }
+              tasksInError={status?.tasks || {}}
               taskGroup={taskGroup}
             />
           </div>

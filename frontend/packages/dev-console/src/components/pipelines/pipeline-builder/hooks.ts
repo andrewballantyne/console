@@ -5,7 +5,6 @@ import {
   PipelineResource,
   PipelineResourceTask,
   PipelineTask,
-  PipelineTaskRef,
 } from '../../../utils/pipeline-augment';
 import { PipelineVisualizationTaskItem } from '../../../utils/pipeline-utils';
 import { AddNodeDirection } from '../pipeline-topology/const';
@@ -29,7 +28,7 @@ import {
   UpdateTasksCallback,
 } from './types';
 import { nodeTaskErrors, TaskErrorType, UpdateOperationType } from './const';
-import { getErrorMessage } from './utils';
+import { findRelatedTask, getErrorMessage } from './utils';
 
 type UseTasks = {
   namespacedTasks: PipelineResourceTask[] | null;
@@ -96,28 +95,14 @@ export const useTasks = (namespace?: string): UseTasks => {
   };
 };
 
-type UseNodes = {
-  nodes: PipelineMixedNodeModel[];
-  tasksCount: number;
-  tasksLoaded: boolean;
-  loadingTasksError?: string;
-};
 export const useNodes = (
-  namespace: string,
+  clusterTasks: PipelineResourceTask[],
+  namespacedTasks: PipelineResourceTask[],
   onTaskSelection: SelectTaskCallback,
   onUpdateTasks: UpdateTasksCallback,
   taskGroup: PipelineBuilderTaskGroup,
   tasksInError: TaskErrorMap,
-): UseNodes => {
-  const { clusterTasks, namespacedTasks, errorMsg } = useTasks(namespace);
-
-  const getTask = (taskRef: PipelineTaskRef) => {
-    if (taskRef.kind === ClusterTaskModel.kind) {
-      return clusterTasks.find((task) => task.metadata.name === taskRef.name);
-    }
-    return namespacedTasks.find((task) => task.metadata.name === taskRef.name);
-  };
-
+): PipelineMixedNodeModel[] => {
   const taskGroupRef = React.useRef(taskGroup);
   taskGroupRef.current = taskGroup;
 
@@ -151,7 +136,8 @@ export const useNodes = (
       ? tasksToBuilderNodes(
           taskGroup.tasks,
           onNewListNode,
-          (task) => onTaskSelection(task, getTask(task.taskRef)),
+          (task) =>
+            onTaskSelection(task, findRelatedTask(clusterTasks, namespacedTasks, task.taskRef)),
           getErrorMessage(nodeTaskErrors, tasksInError),
         )
       : [];
@@ -160,20 +146,7 @@ export const useNodes = (
       ? [newListNode('initial-node')]
       : taskGroup.listTasks.map((listTask) => newListNode(listTask.name, listTask.runAfter));
 
-  const nodes: PipelineMixedNodeModel[] = handleParallelToParallelNodes([
-    ...taskNodes,
-    ...taskListNodes,
-  ]);
-
-  const localTaskCount = namespacedTasks?.length || 0;
-  const clusterTaskCount = clusterTasks?.length || 0;
-
-  return {
-    tasksCount: localTaskCount + clusterTaskCount,
-    tasksLoaded: !!namespacedTasks && !!clusterTasks,
-    loadingTasksError: errorMsg,
-    nodes,
-  };
+  return handleParallelToParallelNodes([...taskNodes, ...taskListNodes]);
 };
 
 export const useResourceValidation = (

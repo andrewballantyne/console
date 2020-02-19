@@ -21,7 +21,9 @@ export type PipelineBuilderTaskGroup = {
 };
 
 export type PipelineBuilderFormValues = PipelineBuilderTaskGroup & {
+  clusterTasks: PipelineResourceTask[];
   name: string;
+  namespacedTasks: PipelineResourceTask[];
   params: PipelineParam[];
   resources: PipelineResource[];
 };

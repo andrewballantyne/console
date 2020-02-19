@@ -1,19 +1,11 @@
 import * as React from 'react';
 import { RouteComponentProps } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { Formik, FormikBag } from 'formik';
-import { history } from '@console/internal/components/utils';
-import { k8sCreate, k8sUpdate } from '@console/internal/module/k8s';
-import { PipelineModel } from '../../../models';
+import { LoadingBox } from '@console/internal/components/utils';
+import { Alert } from '@patternfly/react-core';
 import { Pipeline } from '../../../utils/pipeline-augment';
-import PipelineBuilderForm from './PipelineBuilderForm';
-import { PipelineBuilderFormValues, PipelineBuilderFormikValues } from './types';
-import {
-  convertBuilderFormToPipeline,
-  convertPipelineToBuilderForm,
-  getPipelineURL,
-} from './utils';
-import { validationSchema } from './validation-utils';
+import { useTasks } from './hooks';
+import PipelineBuilderFormikWrapper from './PipelineBuilderFormikWrapper';
 
 import './PipelineBuilderPage.scss';
 
@@ -28,59 +20,39 @@ const PipelineBuilderPage: React.FC<PipelineBuilderPageProps> = (props) => {
       params: { ns },
     },
   } = props;
+  const { namespacedTasks, clusterTasks, errorMsg } = useTasks(ns);
 
-  const initialValues: PipelineBuilderFormValues = {
-    name: 'new-pipeline',
-    params: [],
-    resources: [],
-    tasks: [],
-    listTasks: [],
-    ...(convertPipelineToBuilderForm(existingPipeline) || {}),
-  };
+  const localTaskCount = namespacedTasks?.length || 0;
+  const clusterTaskCount = clusterTasks?.length || 0;
+  const tasksCount = localTaskCount + clusterTaskCount;
+  const tasksLoaded = !!namespacedTasks && !!clusterTasks;
 
-  const handleSubmit = (
-    values: PipelineBuilderFormikValues,
-    actions: FormikBag<any, PipelineBuilderFormValues>,
-  ) => {
-    let resourceCall;
-    if (existingPipeline) {
-      resourceCall = k8sUpdate(
-        PipelineModel,
-        convertBuilderFormToPipeline(values, ns, existingPipeline),
-        ns,
-        existingPipeline.metadata.name,
-      );
-    } else {
-      resourceCall = k8sCreate(PipelineModel, convertBuilderFormToPipeline(values, ns));
-    }
-
-    return resourceCall
-      .then(() => {
-        actions.setSubmitting(false);
-        history.push(`${getPipelineURL(ns)}/${values.name}`);
-      })
-      .catch((e) => {
-        actions.setStatus({ submitError: e.message });
-      });
-  };
+  if (errorMsg) {
+    // Failed to load the tasks
+    return (
+      <Alert variant="danger" isInline title="Error loading the tasks.">
+        {errorMsg}
+      </Alert>
+    );
+  }
+  if (!tasksLoaded) {
+    return <LoadingBox />;
+  }
+  if (tasksCount === 0) {
+    // No tasks to pick from, nothing we can do here...
+    return <Alert variant="danger" isInline title="Unable to locate any tasks." />;
+  }
 
   return (
     <div className="odc-pipeline-builder-page">
       <Helmet>
         <title>Pipeline Builder</title>
       </Helmet>
-      <Formik
-        initialValues={initialValues}
-        onSubmit={handleSubmit}
-        onReset={history.goBack}
-        validationSchema={validationSchema}
-        render={(formikProps) => (
-          <PipelineBuilderForm
-            {...formikProps}
-            namespace={ns}
-            existingPipeline={existingPipeline}
-          />
-        )}
+      <PipelineBuilderFormikWrapper
+        clusterTasks={clusterTasks}
+        existingPipeline={existingPipeline}
+        namespacedTasks={namespacedTasks}
+        namespace={ns}
       />
     </div>
   );

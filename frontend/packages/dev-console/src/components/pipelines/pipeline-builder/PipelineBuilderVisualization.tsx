@@ -1,6 +1,5 @@
 import * as React from 'react';
-import { Alert } from '@patternfly/react-core';
-import { LoadingBox } from '@console/internal/components/utils';
+import { PipelineResourceTask } from '../../../utils/pipeline-augment';
 import { PipelineLayout } from '../pipeline-topology/const';
 import PipelineTopologyGraph from '../pipeline-topology/PipelineTopologyGraph';
 import { getEdgesFromNodes } from '../pipeline-topology/utils';
@@ -13,7 +12,8 @@ import {
 } from './types';
 
 type PipelineBuilderVisualizationProps = {
-  namespace: string;
+  clusterTasks: PipelineResourceTask[];
+  namespacedTasks: PipelineResourceTask[];
   onTaskSelection: SelectTaskCallback;
   onUpdateTasks: UpdateTasksCallback;
   taskGroup: PipelineBuilderTaskGroup;
@@ -21,34 +21,21 @@ type PipelineBuilderVisualizationProps = {
 };
 
 const PipelineBuilderVisualization: React.FC<PipelineBuilderVisualizationProps> = ({
-  namespace,
+  clusterTasks,
+  namespacedTasks,
   onTaskSelection,
   onUpdateTasks,
   taskGroup,
   tasksInError,
 }) => {
-  const { tasksLoaded, tasksCount, nodes, loadingTasksError } = useNodes(
-    namespace,
+  const nodes = useNodes(
+    clusterTasks,
+    namespacedTasks,
     onTaskSelection,
     onUpdateTasks,
     taskGroup,
     tasksInError,
   );
-
-  if (loadingTasksError) {
-    return (
-      <Alert variant="danger" isInline title="Error loading the tasks.">
-        {loadingTasksError}
-      </Alert>
-    );
-  }
-  if (!tasksLoaded) {
-    return <LoadingBox />;
-  }
-  if (tasksCount === 0 && taskGroup.tasks.length === 0) {
-    // No tasks, nothing we can do here...
-    return <Alert variant="danger" isInline title="Unable to locate any tasks." />;
-  }
 
   return (
     <PipelineTopologyGraph
