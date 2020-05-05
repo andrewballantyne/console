@@ -5,6 +5,7 @@ import { Pipeline, PipelineResourceTask, PipelineTask } from '../../../utils/pip
 import { getTaskParameters } from '../resource-utils';
 import { TASK_ERROR_STRINGS, TaskErrorType } from './const';
 import { PipelineBuilderFormikValues, PipelineBuilderFormValues, TaskErrorMap } from './types';
+import { PipelineMixedNodeModel } from '../pipeline-topology/types';
 
 export const getErrorMessage = (errorTypes: TaskErrorType[], errorMap: TaskErrorMap) => (
   taskName: string,
@@ -123,4 +124,52 @@ export const goToYAML = (existingPipeline?: Pipeline, namespace?: string) => {
         )}/yaml`
       : `${getPipelineURL(namespace)}/~new`,
   );
+};
+
+const getRunAfter = (node: PipelineMixedNodeModel): string[] | undefined =>
+  node.data?.task?.runAfter;
+
+export const breakIntoIsolatedPaths = (
+  nodes: PipelineMixedNodeModel[],
+): PipelineMixedNodeModel[][] => {
+  // loop runAfter nodes and build listing
+  // look listing until no more nodes
+  // eliminate paths that rejoin
+  // => Break if only 1
+
+  const startingNodes = nodes.filter((n) => !Array.isArray(getRunAfter(n)));
+
+  if (startingNodes.length === 1) {
+    // Everything is connected
+    return [nodes];
+  }
+
+  const otherNodes = nodes.filter((n) => Array.isArray(getRunAfter(n)));
+
+  const paths: PipelineMixedNodeModel[][] = startingNodes.map((node) => [node]);
+
+  const buildPaths = (
+    nodeList: PipelineMixedNodeModel[],
+    pathList: PipelineMixedNodeModel[][],
+    idx: number = 0,
+  ): PipelineMixedNodeModel[][] => {
+    return pathList.map((path) => {
+      const thisNode: PipelineMixedNodeModel = path[idx];
+      if (thisNode === undefined) {
+        return path;
+      }
+
+      const runAfters = nodeList.filter((n) => getRunAfter(n).includes(thisNode.id));
+
+      const result = buildPaths(nodeList, [[...path, ...runAfters]], idx + 1);
+
+      return result[0];
+    });
+  };
+
+  const fullPaths = buildPaths(otherNodes, paths);
+
+  // trim full paths for overlaps
+
+  return fullPaths;
 };
