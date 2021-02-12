@@ -2,9 +2,9 @@ import * as React from 'react';
 import { useUserSettings } from '@console/shared';
 import Dashboard from '@console/shared/src/components/dashboard/Dashboard';
 import DashboardGrid from '@console/shared/src/components/dashboard/DashboardGrid';
-import QuickStartsLoader from '@console/app/src/components/quick-starts/loader/QuickStartsLoader';
 import { HIDE_QUICK_START_DASHBOARD_TILE_STORAGE_KEY } from '@console/shared/src/components/quick-starts/quick-starts-catalog-card-constants';
 import QuickStartsCatalogCard from '@console/shared/src/components/quick-starts/QuickStartsCatalogCard';
+import { QuickStart } from '@console/app/src/components/quick-starts/utils/quick-start-types';
 import { StatusCard } from './status-card';
 import { DetailsCard } from './details-card';
 import { InventoryCard } from './inventory-card';
@@ -21,7 +21,11 @@ const rightCards = [{ Card: ActivityCard }];
 
 const HIDE_QUICK_START_DASHBOARD_TILE_USER_SETTINGS_KEY = 'console.dashboard.quickStartTile';
 
-export const ClusterDashboard: React.FC<{}> = () => {
+interface ClusterDashboardProps {
+  quickStarts: QuickStart[];
+}
+
+export const ClusterDashboard: React.FC<ClusterDashboardProps> = ({ quickStarts }) => {
   const [infrastructure, infrastructureLoaded, infrastructureError] = useK8sGet<K8sResourceKind>(
     InfrastructureModel,
     'cluster',
@@ -34,25 +38,21 @@ export const ClusterDashboard: React.FC<{}> = () => {
 
   const rc = React.useMemo(
     () =>
-      loaded && showQuickStartsCatalogCard
+      loaded && showQuickStartsCatalogCard && quickStarts?.length > 0
         ? [
             {
               Card: () => (
-                <QuickStartsLoader>
-                  {(quickStarts) => (
-                    <QuickStartsCatalogCard
-                      quickStarts={quickStarts}
-                      storageKey={HIDE_QUICK_START_DASHBOARD_TILE_STORAGE_KEY}
-                      userSettingsKey={HIDE_QUICK_START_DASHBOARD_TILE_USER_SETTINGS_KEY}
-                    />
-                  )}
-                </QuickStartsLoader>
+                <QuickStartsCatalogCard
+                  quickStarts={quickStarts}
+                  storageKey={HIDE_QUICK_START_DASHBOARD_TILE_STORAGE_KEY}
+                  userSettingsKey={HIDE_QUICK_START_DASHBOARD_TILE_USER_SETTINGS_KEY}
+                />
               ),
             },
             ...rightCards,
           ]
         : rightCards,
-    [showQuickStartsCatalogCard, loaded],
+    [showQuickStartsCatalogCard, loaded, quickStarts],
   );
 
   const context = {
