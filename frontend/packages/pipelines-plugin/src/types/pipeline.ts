@@ -1,5 +1,5 @@
 import { K8sResourceCommon } from '@console/internal/module/k8s';
-import { TektonParam, TektonResource } from './coreTekton';
+import { TektonParam, TektonResource, TektonTaskSteps } from './coreTekton';
 
 export type PipelineTaskWorkspace = {
   description?: string;
@@ -18,12 +18,7 @@ export type PipelineTaskSpec = {
   metadata?: {
     labels?: { [key: string]: string };
   };
-  steps: {
-    name: string;
-    image?: string;
-    args?: string[];
-    script?: string[];
-  }[];
+  steps: TektonTaskSteps[];
 };
 
 export type PipelineTaskResource = {

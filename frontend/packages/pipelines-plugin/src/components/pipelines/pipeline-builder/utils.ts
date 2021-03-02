@@ -2,12 +2,17 @@ import * as _ from 'lodash';
 import { apiVersionForModel, referenceForModel } from '@console/internal/module/k8s';
 import { getRandomChars } from '@console/shared';
 import { EditorType } from '@console/shared/src/components/synced-editor/editor-toggle';
-import { PipelineModel, TaskModel } from '../../../models';
-import { PipelineKind, PipelineTask, TaskKind, TektonParam } from '../../../types';
+import { ClusterTaskModel, PipelineModel, TaskModel } from '../../../models';
+import { PipelineKind, PipelineTask, PipelineTaskRef, TaskKind, TektonParam } from '../../../types';
 import { removeEmptyDefaultFromPipelineParams } from '../detail-page-tabs/utils';
 import { getTaskParameters } from '../resource-utils';
 import { TASK_ERROR_STRINGS, TaskErrorType } from './const';
-import { PipelineBuilderFormValues, PipelineBuilderFormYamlValues, TaskErrorMap } from './types';
+import {
+  PipelineBuilderFormValues,
+  PipelineBuilderFormYamlValues,
+  PipelineBuilderResourceGrouping,
+  TaskErrorMap,
+} from './types';
 
 export const getErrorMessage = (errorTypes: TaskErrorType[], errorMap: TaskErrorMap) => (
   taskName: string,
@@ -23,8 +28,32 @@ export const getErrorMessage = (errorTypes: TaskErrorType[], errorMap: TaskError
   return hasRequestedError.length > 0 ? TASK_ERROR_STRINGS[hasRequestedError[0]] : null;
 };
 
+export const findTask = (
+  resourceTasks: PipelineBuilderResourceGrouping,
+  taskRef: PipelineTaskRef,
+): TaskKind => {
+  if (!resourceTasks?.clusterTasks || !resourceTasks?.namespacedTasks) {
+    return null;
+  }
+  if (!taskRef?.kind) {
+    return null;
+  }
+
+  if (taskRef.kind === ClusterTaskModel.kind) {
+    return resourceTasks.clusterTasks.find((task) => task.metadata.name === taskRef.name);
+  }
+  return resourceTasks.namespacedTasks.find((task) => task.metadata.name === taskRef.name);
+};
+
+export const convertResourceParamsToTaskParams = (resource: TaskKind): TektonParam[] => {
+  return getTaskParameters(resource).map((param) => ({
+    name: param.name,
+    value: param.default,
+  }));
+};
+
 export const taskParamIsRequired = (param: TektonParam): boolean => {
-  return !('default' in param);
+  return !!param && !('default' in param);
 };
 
 export const safeName = (reservedNames: string[], desiredName: string): string => {
@@ -138,6 +167,8 @@ export const convertPipelineToBuilderForm = (
       workspaces,
       tasks,
       listTasks: [],
+      clusterTasks: [],
+      namespacedTasks: [],
     },
   };
 };

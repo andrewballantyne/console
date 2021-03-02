@@ -23,16 +23,22 @@ export type PipelineBuilderTaskGrouping = {
   listTasks: PipelineBuilderListTask[];
 };
 
+export type PipelineBuilderResourceGrouping = {
+  namespacedTasks: TaskKind[];
+  clusterTasks: TaskKind[];
+};
+
 export type PipelineBuilderTaskGroup = PipelineBuilderTaskGrouping & {
   highlightedIds: string[];
 };
 
-export type PipelineBuilderFormValues = PipelineBuilderTaskGrouping & {
-  name: string;
-  params: TektonParam[];
-  resources: TektonResource[];
-  workspaces: PipelineWorkspace[];
-};
+export type PipelineBuilderFormValues = PipelineBuilderTaskGrouping &
+  PipelineBuilderResourceGrouping & {
+    name: string;
+    params: TektonParam[];
+    resources: TektonResource[];
+    workspaces: PipelineWorkspace[];
+  };
 
 export type PipelineBuilderFormYamlValues = {
   editorType: EditorType;

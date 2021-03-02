@@ -237,5 +237,6 @@
   "Cancelled": "Cancelled",
   "Pending": "Pending",
   "PipelineRun not started yet": "PipelineRun not started yet",
-  "Value": "Value"
+  "Value": "Value",
+  "TaskSpec or TaskRef must be provided": "TaskSpec or TaskRef must be provided"
 }

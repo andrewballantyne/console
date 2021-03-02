@@ -19,6 +19,7 @@ export enum TaskErrorType {
   MISSING_WORKSPACES = 'missingWorkspaces',
 }
 
+// TODO: Translate
 export const TASK_ERROR_STRINGS = {
   [TaskErrorType.MISSING_RESOURCES]: 'Missing Resources',
   [TaskErrorType.MISSING_REQUIRED_PARAMS]: 'Missing Parameters',
@@ -39,4 +40,6 @@ export const initialPipelineFormData: PipelineBuilderFormValues = {
   workspaces: [],
   tasks: [],
   listTasks: [],
+  namespacedTasks: [],
+  clusterTasks: [],
 };
