@@ -1,8 +1,7 @@
 import * as yup from 'yup';
 import { TFunction } from 'i18next';
-import { isValidUrl } from '@console/shared';
+import { isValidUrl, nameValidationSchema } from '@console/shared';
 import {
-  nameValidationSchema,
   projectNameValidationSchema,
   applicationNameValidationSchema,
 } from '@console/dev-console/src/components/import/validation-schema';

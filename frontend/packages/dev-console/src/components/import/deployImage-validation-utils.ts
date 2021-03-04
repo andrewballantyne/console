@@ -1,7 +1,7 @@
 import * as yup from 'yup';
 import { TFunction } from 'i18next';
+import { nameValidationSchema } from '@console/shared';
 import {
-  nameValidationSchema,
   projectNameValidationSchema,
   applicationNameValidationSchema,
   deploymentValidationSchema,

@@ -1,9 +1,9 @@
 import * as yup from 'yup';
 import * as _ from 'lodash';
 import { TFunction } from 'i18next';
+import { nameValidationSchema } from '@console/shared';
 import { GitTypes } from './import-types';
 import {
-  nameValidationSchema,
   projectNameValidationSchema,
   applicationNameValidationSchema,
   deploymentValidationSchema,

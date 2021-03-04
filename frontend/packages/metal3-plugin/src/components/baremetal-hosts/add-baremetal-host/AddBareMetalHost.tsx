@@ -9,8 +9,7 @@ import {
   LoadingBox,
   LoadError,
 } from '@console/internal/components/utils';
-import { nameValidationSchema } from '@console/dev-console/src/components/import/validation-schema';
-import { getName } from '@console/shared/src';
+import { getName, nameValidationSchema } from '@console/shared';
 import { usePrevious } from '@console/shared/src/hooks/previous';
 import { referenceForModel, SecretKind } from '@console/internal/module/k8s';
 import { createBareMetalHost, updateBareMetalHost } from '../../../k8s/requests/bare-metal-host';

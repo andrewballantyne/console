@@ -2,6 +2,7 @@ import * as _ from 'lodash';
 import * as yup from 'yup';
 import { TFunction } from 'i18next';
 import { EditorType } from '@console/shared/src/components/synced-editor/editor-toggle';
+import { nameValidationSchema } from '@console/shared';
 import { TASK_ERROR_STRINGS, TaskErrorType } from './const';
 import { findTask, taskParamIsRequired } from './utils';
 import { PipelineBuilderFormYamlValues, ResourceTarget } from './types';
@@ -16,21 +17,6 @@ import {
   PipelineTaskWorkspace,
 } from '../../../types';
 import { PipelineResourceType } from '../const';
-
-// TODO: Move to shared -- dupe of dev-console/.../import/validation-schema
-const nameRegex = /^([a-z]([-a-z0-9]*[a-z0-9])?)*$/;
-export const nameValidationSchema = yup
-  .string()
-  .matches(nameRegex, {
-    message:
-      // TODO: translate
-      'Name must consist of lower-case letters, numbers and hyphens. It must start with a letter and end with a letter or number.',
-    excludeEmptyString: true,
-  })
-  // TODO: translate
-  .max(253, 'Cannot be longer than 253 characters.')
-  // TODO: translate
-  .required('Required');
 
 const getTask = (
   formValues: PipelineBuilderFormYamlValues,
