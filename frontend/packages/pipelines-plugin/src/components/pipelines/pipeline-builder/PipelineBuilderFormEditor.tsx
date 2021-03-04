@@ -1,12 +1,12 @@
 import * as React from 'react';
-import { useFormikContext } from 'formik';
 import { useTranslation } from 'react-i18next';
 import { TextInputTypes } from '@patternfly/react-core';
 import { InputField } from '@console/shared';
 import { PipelineParameters, PipelineResources, PipelineWorkspaces } from '../detail-page-tabs';
 import PipelineBuilderVisualization from './PipelineBuilderVisualization';
+import { useFormikFetchAndSaveTasks } from './hooks';
 import {
-  PipelineBuilderFormikValues,
+  PipelineBuilderResourceGrouping,
   PipelineBuilderTaskGroup,
   SelectTaskCallback,
   UpdateTasksCallback,
@@ -18,14 +18,22 @@ type PipelineBuilderFormEditorProps = {
   namespace: string;
   hasExistingPipeline: boolean;
   taskGroup: PipelineBuilderTaskGroup;
+  taskResources: PipelineBuilderResourceGrouping;
   onTaskSelection: SelectTaskCallback;
   onUpdateTasks: UpdateTasksCallback;
 };
 
 const PipelineBuilderFormEditor: React.FC<PipelineBuilderFormEditorProps> = (props) => {
   const { t } = useTranslation();
-  const { namespace, hasExistingPipeline, taskGroup, onTaskSelection, onUpdateTasks } = props;
-  const { status } = useFormikContext<PipelineBuilderFormikValues>();
+  const {
+    namespace,
+    hasExistingPipeline,
+    taskGroup,
+    taskResources,
+    onTaskSelection,
+    onUpdateTasks,
+  } = props;
+  useFormikFetchAndSaveTasks(namespace);
 
   return (
     <>
@@ -43,10 +51,10 @@ const PipelineBuilderFormEditor: React.FC<PipelineBuilderFormEditorProps> = (pro
         <h2>{t('pipelines-plugin~Tasks')}</h2>
         <PipelineBuilderVisualization
           namespace={namespace}
-          tasksInError={status?.tasks || {}}
           onTaskSelection={onTaskSelection}
           onUpdateTasks={onUpdateTasks}
           taskGroup={taskGroup}
+          taskResources={taskResources}
         />
       </div>
 

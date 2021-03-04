@@ -1,18 +1,12 @@
 import * as _ from 'lodash';
 import { apiVersionForModel, referenceForModel } from '@console/internal/module/k8s';
 import { getRandomChars } from '@console/shared';
-import { EditorType } from '@console/shared/src/components/synced-editor/editor-toggle';
 import { ClusterTaskModel, PipelineModel, TaskModel } from '../../../models';
 import { PipelineKind, PipelineTask, PipelineTaskRef, TaskKind, TektonParam } from '../../../types';
-import { removeEmptyDefaultFromPipelineParams } from '../detail-page-tabs/utils';
+import { removeEmptyDefaultFromPipelineParams } from '../detail-page-tabs';
 import { getTaskParameters } from '../resource-utils';
 import { TASK_ERROR_STRINGS, TaskErrorType } from './const';
-import {
-  PipelineBuilderFormValues,
-  PipelineBuilderFormYamlValues,
-  PipelineBuilderResourceGrouping,
-  TaskErrorMap,
-} from './types';
+import { PipelineBuilderFormValues, PipelineBuilderResourceGrouping, TaskErrorMap } from './types';
 
 export const getErrorMessage = (errorTypes: TaskErrorType[], errorMap: TaskErrorMap) => (
   taskName: string,
@@ -149,7 +143,7 @@ export const convertBuilderFormToPipeline = (
 
 export const convertPipelineToBuilderForm = (
   pipeline: PipelineKind,
-): PipelineBuilderFormYamlValues => {
+): Omit<PipelineBuilderFormValues, 'clusterTasks' | 'namespacedTasks'> => {
   if (!pipeline) return null;
 
   const {
@@ -158,18 +152,12 @@ export const convertPipelineToBuilderForm = (
   } = pipeline;
 
   return {
-    editorType: EditorType.Form,
-    yamlData: '',
-    formData: {
-      name,
-      params,
-      resources,
-      workspaces,
-      tasks,
-      listTasks: [],
-      clusterTasks: [],
-      namespacedTasks: [],
-    },
+    name,
+    params,
+    resources,
+    workspaces,
+    tasks,
+    listTasks: [],
   };
 };
 

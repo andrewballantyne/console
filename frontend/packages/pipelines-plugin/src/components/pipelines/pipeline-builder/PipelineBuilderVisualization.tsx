@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
+import { useFormikContext } from 'formik';
 import { Alert } from '@patternfly/react-core';
 import { LoadingBox } from '@console/internal/components/utils';
 import { hasInlineTaskSpec } from '../../../utils/pipeline-utils';
@@ -8,9 +9,10 @@ import PipelineTopologyGraph from '../pipeline-topology/PipelineTopologyGraph';
 import { getEdgesFromNodes } from '../pipeline-topology/utils';
 import { useNodes } from './hooks';
 import {
+  PipelineBuilderFormikValues,
+  PipelineBuilderResourceGrouping,
   PipelineBuilderTaskGroup,
   SelectTaskCallback,
-  TaskErrorMap,
   UpdateTasksCallback,
 } from './types';
 
@@ -19,7 +21,7 @@ type PipelineBuilderVisualizationProps = {
   onTaskSelection: SelectTaskCallback;
   onUpdateTasks: UpdateTasksCallback;
   taskGroup: PipelineBuilderTaskGroup;
-  tasksInError: TaskErrorMap;
+  taskResources: PipelineBuilderResourceGrouping;
 };
 
 const PipelineBuilderVisualization: React.FC<PipelineBuilderVisualizationProps> = ({
@@ -27,21 +29,26 @@ const PipelineBuilderVisualization: React.FC<PipelineBuilderVisualizationProps> 
   onTaskSelection,
   onUpdateTasks,
   taskGroup,
-  tasksInError,
+  taskResources,
 }) => {
   const { t } = useTranslation();
-  const { tasksLoaded, tasksCount, nodes, loadingTasksError } = useNodes(
+  const { errors, status } = useFormikContext<PipelineBuilderFormikValues>();
+  const tasksInError = errors?.tasks || {};
+  console.debug('errors', tasksInError);
+  const { tasksCount, nodes } = useNodes(
     namespace,
     onTaskSelection,
     onUpdateTasks,
     taskGroup,
+    taskResources,
     tasksInError,
   );
+  const tasksLoaded = !!taskResources.namespacedTasks || !!taskResources.clusterTasks;
 
-  if (loadingTasksError) {
+  if (status?.taskLoadingError) {
     return (
       <Alert variant="danger" isInline title={t('pipelines-plugin~Error loading the tasks.')}>
-        {loadingTasksError}
+        {status.taskLoadingError}
       </Alert>
     );
   }

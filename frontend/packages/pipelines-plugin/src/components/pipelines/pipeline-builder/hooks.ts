@@ -1,8 +1,12 @@
 import * as React from 'react';
 import * as _ from 'lodash';
 import { useTranslation } from 'react-i18next';
+import { useFormikContext } from 'formik';
 import { referenceForModel } from '@console/internal/module/k8s';
-import { useK8sWatchResources } from '@console/internal/components/utils/k8s-watch-hook';
+import {
+  useK8sWatchResources,
+  WatchK8sResultsObject,
+} from '@console/internal/components/utils/k8s-watch-hook';
 import { ClusterTaskModel, TaskModel } from '../../../models';
 import {
   TektonResource,
@@ -25,6 +29,8 @@ import {
   tasksToBuilderNodes,
 } from '../pipeline-topology/utils';
 import {
+  PipelineBuilderFormikValues,
+  PipelineBuilderResourceGrouping,
   PipelineBuilderTaskGroup,
   SelectTaskCallback,
   TaskErrorMap,
@@ -37,60 +43,68 @@ import {
 import { nodeTaskErrors, TaskErrorType, UpdateOperationType } from './const';
 import { getErrorMessage } from './utils';
 
-type UseTasks = {
-  namespacedTasks: TaskKind[] | null;
-  clusterTasks: TaskKind[] | null;
-  errorMsg?: string;
-};
-export const useTasks = (namespace?: string): UseTasks => {
+export const useFormikFetchAndSaveTasks = (namespace: string) => {
   const { t } = useTranslation();
-  const memoizedResources = React.useMemo(
-    () => ({
-      tasks: { kind: referenceForModel(TaskModel), isList: true, namespace },
-      clusterTasks: {
-        kind: referenceForModel(ClusterTaskModel),
-        isList: true,
-        namespaced: false,
-      },
-    }),
-    [namespace],
-  );
-  const { tasks, clusterTasks } = useK8sWatchResources<{ [kind: string]: TaskKind[] }>(
-    memoizedResources,
-  );
-  let errorMsg: string;
-  if (tasks.loadError) {
-    errorMsg = t('pipelines-plugin~Failed to load namespace Tasks. {{tasksLoadError}}', {
-      tasksLoadError: tasks.loadError,
-    });
+  const { setFieldValue, setStatus } = useFormikContext<PipelineBuilderFormikValues>();
+
+  const { namespacedTasks, clusterTasks } = useK8sWatchResources<{
+    namespacedTasks: TaskKind[];
+    clusterTasks: TaskKind[];
+  }>({
+    namespacedTasks: {
+      kind: referenceForModel(TaskModel),
+      isList: true,
+      namespace,
+    },
+    clusterTasks: {
+      kind: referenceForModel(ClusterTaskModel),
+      isList: true,
+      namespaced: false,
+    },
+  });
+
+  // Handle load state
+  const isReady = (resource: WatchK8sResultsObject<TaskKind[]>) =>
+    resource.loaded && !resource.loadError;
+  if (isReady(namespacedTasks)) {
+    setFieldValue('formData.namespacedTasks', namespacedTasks.data);
   }
-  if (clusterTasks.loadError) {
-    errorMsg = t('pipelines-plugin~Failed to load ClusterTasks. {{clusterTasksLoadError}}', {
-      clusterTasksLoadError: clusterTasks.loadError,
-    });
+  if (isReady(clusterTasks)) {
+    setFieldValue('formData.clusterTasks', clusterTasks.data);
   }
 
-  return {
-    namespacedTasks: tasks.loaded && !tasks.loadError ? tasks.data : null,
-    clusterTasks: clusterTasks.loaded && !clusterTasks.loadError ? clusterTasks.data : null,
-    errorMsg,
-  };
+  // Handle errors
+  if (namespacedTasks.loadError) {
+    setStatus({
+      taskLoadingError: t('pipelines-plugin~Failed to load namespace Tasks. {{tasksLoadError}}', {
+        tasksLoadError: namespacedTasks.loadError,
+      }),
+    });
+  } else if (clusterTasks.loadError) {
+    setStatus({
+      taskLoadingError: t(
+        'pipelines-plugin~Failed to load ClusterTasks. {{clusterTasksLoadError}}',
+        {
+          clusterTasksLoadError: clusterTasks.loadError,
+        },
+      ),
+    });
+  }
 };
 
 type UseNodes = {
   nodes: PipelineMixedNodeModel[];
   tasksCount: number;
-  tasksLoaded: boolean;
-  loadingTasksError?: string;
 };
 export const useNodes = (
   namespace: string,
   onTaskSelection: SelectTaskCallback,
   onUpdateTasks: UpdateTasksCallback,
   taskGroup: PipelineBuilderTaskGroup,
+  taskResources: PipelineBuilderResourceGrouping,
   tasksInError: TaskErrorMap,
 ): UseNodes => {
-  const { clusterTasks, namespacedTasks, errorMsg } = useTasks(namespace);
+  const { clusterTasks, namespacedTasks } = taskResources;
 
   const getTask = (taskRef: PipelineTaskRef) => {
     if (taskRef?.kind === ClusterTaskModel.kind) {
@@ -196,8 +210,6 @@ export const useNodes = (
 
   return {
     tasksCount: localTaskCount + clusterTaskCount,
-    tasksLoaded: !!namespacedTasks && !!clusterTasks,
-    loadingTasksError: errorMsg,
     nodes,
   };
 };

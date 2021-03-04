@@ -26,7 +26,7 @@ import {
   SelectedBuilderTask,
   UpdateErrors,
   UpdateOperationUpdateTaskData,
-  PipelineBuilderFormikValues,
+  PipelineBuilderFormikValues, PipelineBuilderResourceGrouping,
 } from './types';
 import { applyChange } from './update-utils';
 import { convertBuilderFormToPipeline } from './utils';
@@ -113,6 +113,10 @@ const PipelineBuilderForm: React.FC<PipelineBuilderFormProps> = (props) => {
     listTasks: values.formData.listTasks,
     highlightedIds: selectedIds,
   };
+  const taskResources: PipelineBuilderResourceGrouping = {
+    namespacedTasks: values.formData.namespacedTasks,
+    clusterTasks: values.formData.clusterTasks,
+  };
 
   const closeSidebarAndHandleReset = React.useCallback(() => {
     setSelectedTask(null);
@@ -125,6 +129,7 @@ const PipelineBuilderForm: React.FC<PipelineBuilderFormProps> = (props) => {
       namespace={namespace}
       hasExistingPipeline={!!existingPipeline}
       taskGroup={taskGroup}
+      taskResources={taskResources}
       onTaskSelection={onTaskSelection}
       onUpdateTasks={(updatedTaskGroup, op) => {
         updateTasks(applyChange(updatedTaskGroup, op));

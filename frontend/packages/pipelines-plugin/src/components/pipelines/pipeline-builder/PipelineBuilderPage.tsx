@@ -37,8 +37,10 @@ const PipelineBuilderPage: React.FC<PipelineBuilderPageProps> = (props) => {
   const initialValues: PipelineBuilderFormYamlValues = {
     editorType: EditorType.Form,
     yamlData: '',
-    formData: initialPipelineFormData,
-    ...(convertPipelineToBuilderForm(existingPipeline) || {}),
+    formData: {
+      ...initialPipelineFormData,
+      ...(convertPipelineToBuilderForm(existingPipeline) || {}),
+    },
   };
 
   const handleSubmit = (
