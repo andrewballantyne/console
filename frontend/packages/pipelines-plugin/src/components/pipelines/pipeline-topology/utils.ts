@@ -23,6 +23,7 @@ import {
   BuilderNodeModelData,
   PipelineRunAfterNodeModelData,
 } from './types';
+import { CheckTaskErrorMessage } from '../pipeline-builder/types';
 
 const createGenericNode: NodeCreatorSetup = (type, width?) => (name, data) => ({
   id: name,
@@ -185,12 +186,12 @@ export const tasksToBuilderNodes = (
   taskList: PipelineVisualizationTaskItem[],
   onAddNode: (task: PipelineVisualizationTaskItem, direction: AddNodeDirection) => void,
   onNodeSelection: (task: PipelineVisualizationTaskItem) => void,
-  getError: (taskName: string) => string,
+  getError: CheckTaskErrorMessage,
   selectedIds: string[],
 ): PipelineMixedNodeModel[] => {
-  return taskList.map((task) => {
+  return taskList.map((task, idx) => {
     return createBuilderNode(task.name, {
-      error: getError(task.name),
+      error: getError(idx),
       task,
       selected: selectedIds.includes(task.name),
       onNodeSelection: () => {

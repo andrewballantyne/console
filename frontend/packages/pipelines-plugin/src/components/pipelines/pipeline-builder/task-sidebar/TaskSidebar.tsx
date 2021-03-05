@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useField } from 'formik';
+import { FormikErrors, useField } from 'formik';
 import { useTranslation } from 'react-i18next';
 import { ActionsMenu, ResourceIcon, CloseButton } from '@console/internal/components/utils';
 import { referenceFor } from '@console/internal/module/k8s';
@@ -13,7 +13,7 @@ import {
   PipelineWorkspace,
 } from '../../../../types';
 import { getTaskParameters, getTaskResources } from '../../resource-utils';
-import { ResourceTarget, TaskErrorMap, UpdateOperationUpdateTaskData } from '../types';
+import { ResourceTarget, UpdateOperationUpdateTaskData } from '../types';
 import TaskSidebarParam from './TaskSidebarParam';
 import TaskSidebarResource from './TaskSidebarResource';
 import TaskSidebarName from './TaskSidebarName';
@@ -22,7 +22,7 @@ import TaskSidebarWorkspace from './TaskSidebarWorkspace';
 import './TaskSidebar.scss';
 
 type TaskSidebarProps = {
-  errorMap: TaskErrorMap;
+  errorMap: FormikErrors<PipelineTask>[];
   onRemoveTask: (taskName: string) => void;
   onUpdateTask: (data: UpdateOperationUpdateTaskData) => void;
   resourceList: TektonResource[];
@@ -47,7 +47,7 @@ const TaskSidebar: React.FC<TaskSidebarProps> = (props) => {
   const [taskField] = useField<PipelineTask>(formikTaskReference);
 
   const updateTask = (newData: Partial<UpdateOperationUpdateTaskData>) => {
-    onUpdateTask({ thisPipelineTask: taskField.value, taskResource, ...newData });
+    onUpdateTask({ thisPipelineTask: taskField.value, ...newData });
   };
 
   const params = getTaskParameters(taskResource);

@@ -120,8 +120,7 @@
   "Use this format when referencing variables in this form: ": "Use this format when referencing variables in this form: ",
   "Select {{label}}": "Select {{label}}",
   "Are you sure you want to remove <1>{selection}</1> from <3>{pipeline.metadata.name}</3>?": "Are you sure you want to remove <1>{selection}</1> from <3>{pipeline.metadata.name}</3>?",
-  "Failed to load namespace Tasks. {{tasksLoadError}}": "Failed to load namespace Tasks. {{tasksLoadError}}",
-  "Failed to load ClusterTasks. {{clusterTasksLoadError}}": "Failed to load ClusterTasks. {{clusterTasksLoadError}}",
+  "Failed to load Tasks. {{error}}": "Failed to load Tasks. {{error}}",
   "Remove Task": "Remove Task",
   "Remove {{taskName}}?": "Remove {{taskName}}?",
   "Are you sure you want to remove {{taskName}}?": "Are you sure you want to remove {{taskName}}?",
@@ -148,7 +147,7 @@
   "No workspaces available. Add pipeline workspaces.": "No workspaces available. Add pipeline workspaces.",
   "Select workspace...": "Select workspace...",
   "Add another value": "Add another value",
-  "Must define at least one task": "Must define at least one task",
+  "TaskSpec or TaskRef must be provided": "TaskSpec or TaskRef must be provided",
   "1 day": "1 day",
   "3 days": "3 days",
   "1 week": "1 week",
@@ -237,6 +236,5 @@
   "Cancelled": "Cancelled",
   "Pending": "Pending",
   "PipelineRun not started yet": "PipelineRun not started yet",
-  "Value": "Value",
-  "TaskSpec or TaskRef must be provided": "TaskSpec or TaskRef must be provided"
+  "Value": "Value"
 }

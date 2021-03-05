@@ -5,25 +5,17 @@ import { ClusterTaskModel, PipelineModel, TaskModel } from '../../../models';
 import { PipelineKind, PipelineTask, PipelineTaskRef, TaskKind, TektonParam } from '../../../types';
 import { removeEmptyDefaultFromPipelineParams } from '../detail-page-tabs';
 import { getTaskParameters } from '../resource-utils';
-import { TASK_ERROR_STRINGS, TaskErrorType } from './const';
-import { PipelineBuilderFormValues, PipelineBuilderResourceGrouping, TaskErrorMap } from './types';
+import { TASK_ERROR_STRINGS } from './const';
+import { GetErrorMessage, PipelineBuilderFormValues, PipelineBuilderTaskResources } from './types';
 
-export const getErrorMessage = (errorTypes: TaskErrorType[], errorMap: TaskErrorMap) => (
-  taskName: string,
-): string => {
-  if (!taskName) {
-    return TASK_ERROR_STRINGS[TaskErrorType.MISSING_NAME];
-  }
-
-  const errorList: TaskErrorType[] | undefined = errorMap?.[taskName];
-  if (!errorList) return null;
-
-  const hasRequestedError = errorList.filter((error) => errorTypes.includes(error));
-  return hasRequestedError.length > 0 ? TASK_ERROR_STRINGS[hasRequestedError[0]] : null;
+export const getTopLevelErrorMessage: GetErrorMessage = (errors) => (taskIndex) => {
+  const taskError = Object.values(errors[taskIndex] || {})[0] as string;
+  // We only want a specific set of top-level error messages
+  return Object.values(TASK_ERROR_STRINGS).includes(taskError) ? taskError : null;
 };
 
 export const findTask = (
-  resourceTasks: PipelineBuilderResourceGrouping,
+  resourceTasks: Omit<PipelineBuilderTaskResources, 'tasksLoaded'>,
   taskRef: PipelineTaskRef,
 ): TaskKind => {
   if (!resourceTasks?.clusterTasks || !resourceTasks?.namespacedTasks) {
@@ -143,7 +135,7 @@ export const convertBuilderFormToPipeline = (
 
 export const convertPipelineToBuilderForm = (
   pipeline: PipelineKind,
-): Omit<PipelineBuilderFormValues, 'clusterTasks' | 'namespacedTasks'> => {
+): Omit<PipelineBuilderFormValues, 'clusterTasks' | 'namespacedTasks' | 'tasksLoaded'> => {
   if (!pipeline) return null;
 
   const {

@@ -1,20 +1,10 @@
 import * as React from 'react';
-import * as _ from 'lodash';
 import { useTranslation } from 'react-i18next';
-import { useFormikContext } from 'formik';
+import { useFormikContext, FormikErrors } from 'formik';
 import { referenceForModel } from '@console/internal/module/k8s';
-import {
-  useK8sWatchResources,
-  WatchK8sResultsObject,
-} from '@console/internal/components/utils/k8s-watch-hook';
+import { useK8sWatchResources } from '@console/internal/components/utils/k8s-watch-hook';
 import { ClusterTaskModel, TaskModel } from '../../../models';
-import {
-  TektonResource,
-  TaskKind,
-  PipelineTask,
-  PipelineTaskRef,
-  PipelineWorkspace,
-} from '../../../types';
+import { TaskKind, PipelineTask, PipelineTaskRef } from '../../../types';
 import { PipelineVisualizationTaskItem } from '../../../utils/pipeline-utils';
 import { AddNodeDirection } from '../pipeline-topology/const';
 import {
@@ -30,18 +20,16 @@ import {
 } from '../pipeline-topology/utils';
 import {
   PipelineBuilderFormikValues,
-  PipelineBuilderResourceGrouping,
+  PipelineBuilderTaskResources,
   PipelineBuilderTaskGroup,
   SelectTaskCallback,
-  TaskErrorMap,
-  UpdateErrors,
   UpdateOperationAddData,
   UpdateOperationConvertToTaskData,
   UpdateOperationFixInvalidTaskListData,
   UpdateTasksCallback,
 } from './types';
-import { nodeTaskErrors, TaskErrorType, UpdateOperationType } from './const';
-import { getErrorMessage } from './utils';
+import { UpdateOperationType } from './const';
+import { getTopLevelErrorMessage } from './utils';
 
 export const useFormikFetchAndSaveTasks = (namespace: string) => {
   const { t } = useTranslation();
@@ -62,48 +50,36 @@ export const useFormikFetchAndSaveTasks = (namespace: string) => {
       namespaced: false,
     },
   });
+  const namespacedTaskData = namespacedTasks.loaded ? namespacedTasks.data : null;
+  const clusterTaskData = clusterTasks.loaded ? clusterTasks.data : null;
 
-  // Handle load state
-  const isReady = (resource: WatchK8sResultsObject<TaskKind[]>) =>
-    resource.loaded && !resource.loadError;
-  if (isReady(namespacedTasks)) {
-    setFieldValue('formData.namespacedTasks', namespacedTasks.data);
-  }
-  if (isReady(clusterTasks)) {
-    setFieldValue('formData.clusterTasks', clusterTasks.data);
-  }
+  React.useEffect(() => {
+    if (namespacedTaskData) {
+      setFieldValue('formData.namespacedTasks', namespacedTaskData);
+    }
+    if (clusterTaskData) {
+      setFieldValue('formData.clusterTasks', clusterTaskData);
+    }
+    setFieldValue('formData.tasksLoaded', !!namespacedTaskData && !!clusterTaskData);
+  }, [setFieldValue, namespacedTaskData, clusterTaskData]);
 
-  // Handle errors
-  if (namespacedTasks.loadError) {
+  const error = namespacedTasks.loadError || clusterTasks.loadError;
+  React.useEffect(() => {
+    if (!error) return;
+
     setStatus({
-      taskLoadingError: t('pipelines-plugin~Failed to load namespace Tasks. {{tasksLoadError}}', {
-        tasksLoadError: namespacedTasks.loadError,
-      }),
+      taskLoadingError: t('pipelines-plugin~Failed to load Tasks. {{error}}', { error }),
     });
-  } else if (clusterTasks.loadError) {
-    setStatus({
-      taskLoadingError: t(
-        'pipelines-plugin~Failed to load ClusterTasks. {{clusterTasksLoadError}}',
-        {
-          clusterTasksLoadError: clusterTasks.loadError,
-        },
-      ),
-    });
-  }
+  }, [t, setStatus, error]);
 };
 
-type UseNodes = {
-  nodes: PipelineMixedNodeModel[];
-  tasksCount: number;
-};
 export const useNodes = (
-  namespace: string,
   onTaskSelection: SelectTaskCallback,
   onUpdateTasks: UpdateTasksCallback,
   taskGroup: PipelineBuilderTaskGroup,
-  taskResources: PipelineBuilderResourceGrouping,
-  tasksInError: TaskErrorMap,
-): UseNodes => {
+  taskResources: PipelineBuilderTaskResources,
+  tasksInError: FormikErrors<PipelineTask>[],
+): PipelineMixedNodeModel[] => {
   const { clusterTasks, namespacedTasks } = taskResources;
 
   const getTask = (taskRef: PipelineTaskRef) => {
@@ -190,7 +166,7 @@ export const useNodes = (
           validTaskList,
           onNewListNode,
           (task) => onTaskSelection(task, getTask(task.taskRef)),
-          getErrorMessage(nodeTaskErrors, tasksInError),
+          getTopLevelErrorMessage(tasksInError),
           taskGroup.highlightedIds,
         )
       : [];
@@ -199,80 +175,5 @@ export const useNodes = (
       ? [soloTask(taskGroup.listTasks[0]?.name)]
       : taskGroup.listTasks.map((listTask) => newListNode(listTask.name, listTask.runAfter));
 
-  const nodes: PipelineMixedNodeModel[] = handleParallelToParallelNodes([
-    ...taskNodes,
-    ...taskListNodes,
-    ...invalidTaskListNodes,
-  ]);
-
-  const localTaskCount = namespacedTasks?.length || 0;
-  const clusterTaskCount = clusterTasks?.length || 0;
-
-  return {
-    tasksCount: localTaskCount + clusterTaskCount,
-    nodes,
-  };
-};
-
-export const useResourceValidation = (
-  tasks: PipelineTask[],
-  resourceValues: TektonResource[],
-  workspaceValues: PipelineWorkspace[],
-  onError: UpdateErrors,
-) => {
-  const [previousErrorIds, setPreviousErrorIds] = React.useState<string[]>([]);
-
-  React.useEffect(() => {
-    const resourceNames = resourceValues.map((r) => r.name);
-
-    const errors = tasks.reduce((acc, task) => {
-      const output = task.resources?.outputs || [];
-      const input = task.resources?.inputs || [];
-      const missingResources = [...output, ...input].filter(
-        (r) => !resourceNames.includes(r.resource),
-      );
-
-      const workspaceNames = workspaceValues.map((w) => w.name);
-      const missingWorkspaces =
-        task.workspaces?.filter((w) => !workspaceNames.includes(w.workspace)) || [];
-
-      if (missingResources.length === 0 && missingWorkspaces.length === 0) {
-        return acc;
-      }
-
-      const taskErrors: TaskErrorType[] = [];
-      if (missingResources.length > 0) {
-        taskErrors.push(TaskErrorType.MISSING_RESOURCES);
-      }
-      if (missingWorkspaces.length > 0) {
-        taskErrors.push(TaskErrorType.MISSING_WORKSPACES);
-      }
-
-      return {
-        ...acc,
-        [task.name]: taskErrors,
-      };
-    }, {});
-
-    if (!_.isEmpty(errors) || previousErrorIds.length > 0) {
-      const outputErrors = previousErrorIds.reduce((acc, id) => {
-        if (acc[id]) {
-          // Error exists, leave it alone
-          return acc;
-        }
-
-        // Error doesn't exist but we had it once, make sure it is cleared
-        return {
-          ...acc,
-          [id]: null,
-        };
-      }, errors);
-
-      const currentErrorIds = Object.keys(outputErrors).filter((id) => !!outputErrors[id]);
-      if (!_.isEqual(currentErrorIds, previousErrorIds)) {
-        setPreviousErrorIds(currentErrorIds);
-      }
-      onError(outputErrors);
-    }
-  }, [tasks, resourceValues, workspaceValues, onError, previousErrorIds, setPreviousErrorIds]);
+  return handleParallelToParallelNodes([...taskNodes, ...taskListNodes, ...invalidTaskListNodes]);
 };

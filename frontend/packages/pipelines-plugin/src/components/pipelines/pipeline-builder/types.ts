@@ -1,4 +1,4 @@
-import { FormikValues } from 'formik';
+import { FormikValues, FormikErrors } from 'formik';
 import { EditorType } from '@console/shared/src/components/synced-editor/editor-toggle';
 import {
   PipelineTask,
@@ -10,9 +10,10 @@ import {
 import { PipelineVisualizationTaskItem } from '../../../utils/pipeline-utils';
 import { AddNodeDirection } from '../pipeline-topology/const';
 // eslint-disable-next-line import/no-cycle
-import { TaskErrorType, UpdateOperationType } from './const';
+import { UpdateOperationType } from './const';
 
-export type UpdateErrors = (errors?: TaskErrorMap) => void;
+export type CheckTaskErrorMessage = (taskIndex: number) => string | null;
+export type GetErrorMessage = (errors: FormikErrors<PipelineTask>[]) => CheckTaskErrorMessage;
 
 export type PipelineBuilderTaskBase = { name: string; runAfter?: string[] };
 
@@ -23,9 +24,10 @@ export type PipelineBuilderTaskGrouping = {
   listTasks: PipelineBuilderListTask[];
 };
 
-export type PipelineBuilderResourceGrouping = {
+export type PipelineBuilderTaskResources = {
   namespacedTasks: TaskKind[];
   clusterTasks: TaskKind[];
+  tasksLoaded: boolean;
 };
 
 export type PipelineBuilderTaskGroup = PipelineBuilderTaskGrouping & {
@@ -33,7 +35,7 @@ export type PipelineBuilderTaskGroup = PipelineBuilderTaskGrouping & {
 };
 
 export type PipelineBuilderFormValues = PipelineBuilderTaskGrouping &
-  PipelineBuilderResourceGrouping & {
+  PipelineBuilderTaskResources & {
     name: string;
     params: TektonParam[];
     resources: TektonResource[];
@@ -51,10 +53,6 @@ export type PipelineBuilderFormikValues = FormikValues & PipelineBuilderFormYaml
 export type SelectedBuilderTask = {
   resource: TaskKind;
   taskIndex: number;
-};
-
-export type TaskErrorMap = {
-  [pipelineInErrorName: string]: TaskErrorType[];
 };
 
 export type SelectTaskCallback = (
@@ -112,7 +110,6 @@ export type UpdateTaskParamData = {
 export type UpdateOperationUpdateTaskData = UpdateOperationBaseData & {
   // Task information
   thisPipelineTask: PipelineTask;
-  taskResource: TaskKind;
 
   // Change information
   newName?: string;
@@ -124,7 +121,6 @@ export type UpdateOperationUpdateTaskData = UpdateOperationBaseData & {
 export type CleanupResults = {
   tasks: PipelineTask[];
   listTasks: PipelineBuilderListTask[];
-  errors?: TaskErrorMap;
 };
 
 export type UpdateOperationAction<D extends UpdateOperationBaseData> = (

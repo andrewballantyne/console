@@ -15,7 +15,7 @@ import { safeJSToYAML } from '@console/shared/src/utils/yaml';
 import { PipelineKind, TaskKind } from '../../../types';
 import { PipelineVisualizationTaskItem } from '../../../utils/pipeline-utils';
 import { PipelineModel } from '../../../models';
-import { useResourceValidation } from './hooks';
+import { useFormikFetchAndSaveTasks } from './hooks';
 import { removeTaskModal } from './modals';
 import PipelineBuilderHeader from './PipelineBuilderHeader';
 import Sidebar from './task-sidebar/Sidebar';
@@ -24,9 +24,9 @@ import {
   CleanupResults,
   PipelineBuilderTaskGroup,
   SelectedBuilderTask,
-  UpdateErrors,
   UpdateOperationUpdateTaskData,
-  PipelineBuilderFormikValues, PipelineBuilderResourceGrouping,
+  PipelineBuilderFormikValues,
+  PipelineBuilderTaskResources,
 } from './types';
 import { applyChange } from './update-utils';
 import { convertBuilderFormToPipeline } from './utils';
@@ -56,10 +56,11 @@ const PipelineBuilderForm: React.FC<PipelineBuilderFormProps> = (props) => {
     errors,
     namespace,
     setFieldValue,
-    setStatus,
     values,
     validateForm,
   } = props;
+  useFormikFetchAndSaveTasks(namespace);
+
   const statusRef = React.useRef(status);
   statusRef.current = status;
 
@@ -71,18 +72,6 @@ const PipelineBuilderForm: React.FC<PipelineBuilderFormProps> = (props) => {
     }
   }, [values.editorType, validateForm]);
 
-  const updateErrors: UpdateErrors = React.useCallback(
-    (taskErrors) => {
-      if (taskErrors) {
-        setStatus({
-          ...statusRef.current,
-          tasks: _.omitBy(_.merge({}, statusRef.current?.tasks, taskErrors), (v) => !v),
-        });
-      }
-    },
-    [setStatus],
-  );
-
   const onTaskSelection = (task: PipelineVisualizationTaskItem, resource: TaskKind) => {
     setSelectedTask({
       taskIndex: values.formData.tasks.findIndex(({ name }) => name === task.name),
@@ -90,19 +79,11 @@ const PipelineBuilderForm: React.FC<PipelineBuilderFormProps> = (props) => {
     });
   };
 
-  useResourceValidation(
-    values.formData.tasks,
-    values.formData.resources,
-    values.formData.workspaces,
-    updateErrors,
-  );
-
   const updateTasks = (changes: CleanupResults): void => {
-    const { tasks, listTasks, errors: taskErrors } = changes;
+    const { tasks, listTasks } = changes;
 
     setFieldValue('formData.tasks', tasks);
     setFieldValue('formData.listTasks', listTasks);
-    updateErrors(taskErrors);
   };
 
   const selectedId = values.formData.tasks[selectedTask?.taskIndex]?.name;
@@ -113,9 +94,10 @@ const PipelineBuilderForm: React.FC<PipelineBuilderFormProps> = (props) => {
     listTasks: values.formData.listTasks,
     highlightedIds: selectedIds,
   };
-  const taskResources: PipelineBuilderResourceGrouping = {
+  const taskResources: PipelineBuilderTaskResources = {
     namespacedTasks: values.formData.namespacedTasks,
     clusterTasks: values.formData.clusterTasks,
+    tasksLoaded: values.formData.tasksLoaded,
   };
 
   const closeSidebarAndHandleReset = React.useCallback(() => {
@@ -126,7 +108,6 @@ const PipelineBuilderForm: React.FC<PipelineBuilderFormProps> = (props) => {
 
   const formEditor = (
     <PipelineBuilderFormEditor
-      namespace={namespace}
       hasExistingPipeline={!!existingPipeline}
       taskGroup={taskGroup}
       taskResources={taskResources}

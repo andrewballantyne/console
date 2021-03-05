@@ -1,15 +1,12 @@
-import * as _ from 'lodash';
 import { getRandomChars } from '@console/shared';
-import { TaskKind, PipelineTask, PipelineTaskParam, PipelineTaskResource } from '../../../types';
+import { PipelineTask, PipelineTaskParam, PipelineTaskResource } from '../../../types';
 import { AddNodeDirection } from '../pipeline-topology/const';
-import { getTaskParameters, getTaskResources } from '../resource-utils';
-import { TaskErrorType, UpdateOperationType } from './const';
+import { UpdateOperationType } from './const';
 import {
   CleanupResults,
   PipelineBuilderListTask,
   PipelineBuilderTaskBase,
   PipelineBuilderTaskGroup,
-  TaskErrorMap,
   UpdateOperation,
   UpdateOperationAction,
   UpdateOperationAddData,
@@ -22,7 +19,7 @@ import {
   UpdateTaskResourceData,
   UpdateTaskWorkspaceData,
 } from './types';
-import { convertResourceToTask, taskParamIsRequired, hasEmptyString } from './utils';
+import { convertResourceToTask } from './utils';
 
 const mapReplaceRelatedInOthers = <TaskType extends PipelineBuilderTaskBase>(
   taskName: string,
@@ -110,49 +107,6 @@ const mapAddRelatedToOthers = <TaskType extends PipelineBuilderTaskBase>(
   };
 };
 
-// TODO: Can we use yup? Do we need this level of checking for errors?
-const getErrors = (task: PipelineTask, resource: TaskKind): TaskErrorMap => {
-  const params = getTaskParameters(resource);
-  const resourceParams = params || [];
-  const requiredParamNames = resourceParams.filter(taskParamIsRequired).map((param) => param.name);
-  const hasNonDefaultParams = task.params
-    ?.filter(({ name }) => requiredParamNames.includes(name))
-    ?.map(({ value }) => !value || (_.isArray(value) && hasEmptyString(value)))
-    .reduce((acc, missingDefault) => missingDefault || acc, false);
-
-  const needsName = !task.name;
-
-  const resources = getTaskResources(resource);
-
-  const taskInputResources = task.resources?.inputs?.length || 0;
-  const requiredInputResources = (resources.inputs || []).filter((r) => !r?.optional).length;
-  const missingInputResources = requiredInputResources - taskInputResources > 0;
-
-  const taskOutputResources = task.resources?.outputs?.length || 0;
-  const requiredOutputResources = (resources.outputs || []).filter((r) => !r?.optional).length;
-  const missingOutputResources = requiredOutputResources - taskOutputResources > 0;
-
-  const taskWorkspaces = resource.spec.workspaces;
-  const missingWorkspaces =
-    taskWorkspaces?.length > 0 && taskWorkspaces.length !== task.workspaces?.length;
-
-  const errorListing: TaskErrorType[] = [];
-  if (hasNonDefaultParams) {
-    errorListing.push(TaskErrorType.MISSING_REQUIRED_PARAMS);
-  }
-  if (missingInputResources || missingOutputResources) {
-    errorListing.push(TaskErrorType.MISSING_RESOURCES);
-  }
-  if (needsName) {
-    errorListing.push(TaskErrorType.MISSING_NAME);
-  }
-  if (missingWorkspaces) {
-    errorListing.push(TaskErrorType.MISSING_WORKSPACES);
-  }
-
-  return { [task.name]: errorListing.length > 0 ? errorListing : null };
-};
-
 const addListNode: UpdateOperationAction<UpdateOperationAddData> = (tasks, listTasks, data) => {
   const { direction, relatedTask } = data;
 
@@ -226,7 +180,6 @@ const convertListToTask: UpdateOperationAction<UpdateOperationConvertToTaskData>
     listTasks: listTasks
       .filter((n) => n.name !== name)
       .map((listTask) => mapReplaceRelatedInOthers(newPipelineTask.name, name, listTask)),
-    errors: getErrors(newPipelineTask, resource),
   };
 };
 
@@ -261,7 +214,6 @@ const deleteListTask: UpdateOperationAction<UpdateOperationDeleteListTaskData> =
   return {
     tasks: updateOnlyTasks,
     listTasks: updateAndRemoveTasks,
-    errors: null,
   };
 };
 
@@ -279,7 +231,6 @@ export const removeTask: UpdateOperationAction<UpdateOperationRemoveTaskData> = 
   return {
     tasks: updateAndRemoveTasks,
     listTasks: updateOnlyTasks,
-    errors: { [taskName]: null },
   };
 };
 
@@ -361,13 +312,10 @@ const updateTask: UpdateOperationAction<UpdateOperationUpdateTaskData> = (
   listTasks,
   data,
 ) => {
-  const { thisPipelineTask, taskResource, newName, params, resources, workspaces } = data;
+  const { thisPipelineTask, newName, params, resources, workspaces } = data;
 
   const canRename = !!newName;
 
-  const updatedResourceIndex = tasks.findIndex(
-    (pipelineTask) => pipelineTask.name === thisPipelineTask.name,
-  );
   const updatedTasks = tasks.map((pipelineTask) => {
     if (pipelineTask.name !== thisPipelineTask.name) {
       if (canRename) {
@@ -395,7 +343,6 @@ const updateTask: UpdateOperationAction<UpdateOperationUpdateTaskData> = (
 
     return updatedResource;
   });
-  const updatedResource = updatedTasks[updatedResourceIndex];
 
   return {
     tasks: updatedTasks,
@@ -404,10 +351,6 @@ const updateTask: UpdateOperationAction<UpdateOperationUpdateTaskData> = (
           mapReplaceRelatedInOthers(newName, thisPipelineTask.name, listTask),
         )
       : listTasks,
-    errors: {
-      [thisPipelineTask.name]: null,
-      ...getErrors(updatedResource, taskResource),
-    },
   };
 };
 
@@ -430,7 +373,6 @@ const fixInvalidListTask: UpdateOperationAction<UpdateOperationFixInvalidTaskLis
       newPipelineTask,
     ],
     listTasks,
-    errors: getErrors(newPipelineTask, resource),
   };
 };
 

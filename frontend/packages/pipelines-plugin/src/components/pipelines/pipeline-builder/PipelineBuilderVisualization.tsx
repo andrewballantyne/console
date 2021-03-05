@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useFormikContext } from 'formik';
+import { useFormikContext, FormikErrors } from 'formik';
 import { Alert } from '@patternfly/react-core';
 import { LoadingBox } from '@console/internal/components/utils';
 import { hasInlineTaskSpec } from '../../../utils/pipeline-utils';
@@ -10,22 +10,27 @@ import { getEdgesFromNodes } from '../pipeline-topology/utils';
 import { useNodes } from './hooks';
 import {
   PipelineBuilderFormikValues,
-  PipelineBuilderResourceGrouping,
+  PipelineBuilderTaskResources,
   PipelineBuilderTaskGroup,
   SelectTaskCallback,
   UpdateTasksCallback,
 } from './types';
+import { PipelineTask } from '../../../types';
 
 type PipelineBuilderVisualizationProps = {
-  namespace: string;
   onTaskSelection: SelectTaskCallback;
   onUpdateTasks: UpdateTasksCallback;
   taskGroup: PipelineBuilderTaskGroup;
-  taskResources: PipelineBuilderResourceGrouping;
+  taskResources: PipelineBuilderTaskResources;
+};
+
+const isTaskArrayErrors = (
+  errors: string | FormikErrors<PipelineTask>[] | string[],
+): errors is FormikErrors<PipelineTask>[] => {
+  return Array.isArray(errors) && typeof errors[0] === 'object';
 };
 
 const PipelineBuilderVisualization: React.FC<PipelineBuilderVisualizationProps> = ({
-  namespace,
   onTaskSelection,
   onUpdateTasks,
   taskGroup,
@@ -33,17 +38,12 @@ const PipelineBuilderVisualization: React.FC<PipelineBuilderVisualizationProps> 
 }) => {
   const { t } = useTranslation();
   const { errors, status } = useFormikContext<PipelineBuilderFormikValues>();
-  const tasksInError = errors?.tasks || {};
-  console.debug('errors', tasksInError);
-  const { tasksCount, nodes } = useNodes(
-    namespace,
-    onTaskSelection,
-    onUpdateTasks,
-    taskGroup,
-    taskResources,
-    tasksInError,
-  );
-  const tasksLoaded = !!taskResources.namespacedTasks || !!taskResources.clusterTasks;
+  let taskErrors: FormikErrors<PipelineTask>[] = [];
+  if (isTaskArrayErrors(errors?.formData?.tasks)) {
+    taskErrors = errors.formData.tasks;
+  }
+  const nodes = useNodes(onTaskSelection, onUpdateTasks, taskGroup, taskResources, taskErrors);
+  const taskCount = taskResources.namespacedTasks.length + taskResources.clusterTasks.length;
 
   if (status?.taskLoadingError) {
     return (
@@ -52,10 +52,10 @@ const PipelineBuilderVisualization: React.FC<PipelineBuilderVisualizationProps> 
       </Alert>
     );
   }
-  if (!tasksLoaded) {
+  if (!taskResources.tasksLoaded) {
     return <LoadingBox />;
   }
-  if (tasksCount === 0 && taskGroup.tasks.length === 0) {
+  if (taskCount === 0 && taskGroup.tasks.length === 0) {
     // No tasks, nothing we can do here...
     return (
       <Alert variant="danger" isInline title={t('pipelines-plugin~Unable to locate any tasks.')} />

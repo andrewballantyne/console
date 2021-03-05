@@ -4,9 +4,8 @@ import { TextInputTypes } from '@patternfly/react-core';
 import { InputField } from '@console/shared';
 import { PipelineParameters, PipelineResources, PipelineWorkspaces } from '../detail-page-tabs';
 import PipelineBuilderVisualization from './PipelineBuilderVisualization';
-import { useFormikFetchAndSaveTasks } from './hooks';
 import {
-  PipelineBuilderResourceGrouping,
+  PipelineBuilderTaskResources,
   PipelineBuilderTaskGroup,
   SelectTaskCallback,
   UpdateTasksCallback,
@@ -15,25 +14,16 @@ import {
 import './PipelineBuilderForm.scss';
 
 type PipelineBuilderFormEditorProps = {
-  namespace: string;
   hasExistingPipeline: boolean;
   taskGroup: PipelineBuilderTaskGroup;
-  taskResources: PipelineBuilderResourceGrouping;
+  taskResources: PipelineBuilderTaskResources;
   onTaskSelection: SelectTaskCallback;
   onUpdateTasks: UpdateTasksCallback;
 };
 
 const PipelineBuilderFormEditor: React.FC<PipelineBuilderFormEditorProps> = (props) => {
   const { t } = useTranslation();
-  const {
-    namespace,
-    hasExistingPipeline,
-    taskGroup,
-    taskResources,
-    onTaskSelection,
-    onUpdateTasks,
-  } = props;
-  useFormikFetchAndSaveTasks(namespace);
+  const { hasExistingPipeline, taskGroup, taskResources, onTaskSelection, onUpdateTasks } = props;
 
   return (
     <>
@@ -50,7 +40,6 @@ const PipelineBuilderFormEditor: React.FC<PipelineBuilderFormEditorProps> = (pro
       <div>
         <h2>{t('pipelines-plugin~Tasks')}</h2>
         <PipelineBuilderVisualization
-          namespace={namespace}
           onTaskSelection={onTaskSelection}
           onUpdateTasks={onUpdateTasks}
           taskGroup={taskGroup}
