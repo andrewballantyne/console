@@ -190,7 +190,7 @@ const pipelineBuilderFormSchema = (formValues: PipelineBuilderFormYamlValues, t:
     });
 
   return yup.object({
-    name: nameValidationSchema.required(t('pipelines-plugin~Required')),
+    name: nameValidationSchema(t).required(t('pipelines-plugin~Required')),
     params: yup.array().of(
       yup.object({
         name: yup.string().required(t('pipelines-plugin~Required')),

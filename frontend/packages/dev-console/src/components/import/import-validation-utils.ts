@@ -22,7 +22,7 @@ import { healthChecksProbesValidationSchema } from '../health-checks/health-chec
 
 export const validationSchema = (t: TFunction) =>
   yup.object().shape({
-    name: nameValidationSchema,
+    name: nameValidationSchema(t),
     project: projectNameValidationSchema,
     application: applicationNameValidationSchema,
     image: imageValidationSchema(t),

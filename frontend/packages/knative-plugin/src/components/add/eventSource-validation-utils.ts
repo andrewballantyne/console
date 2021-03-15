@@ -176,7 +176,7 @@ export const eventSourceValidationSchema = (t: TFunction) =>
       then: yup.object().shape({
         project: projectNameValidationSchema,
         application: applicationNameValidationSchema,
-        name: nameValidationSchema,
+        name: nameValidationSchema(t),
         sink: sinkServiceSchema(t),
         data: sourceDataSpecSchema(t),
       }),
@@ -189,7 +189,7 @@ export const addChannelValidationSchema = (t: TFunction) =>
     if (isDefaultChannel(getChannelKind(formData.type))) {
       return yup.object().shape({
         application: applicationNameValidationSchema,
-        name: nameValidationSchema,
+        name: nameValidationSchema(t),
         data: sourceDataSpecSchema(t),
         type: yup.string(),
       });

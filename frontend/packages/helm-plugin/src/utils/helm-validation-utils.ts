@@ -7,7 +7,7 @@ export const getHelmActionValidationSchema = (helmAction: HelmActionType, t: TFu
   switch (helmAction) {
     case HelmActionType.Install:
       return yup.object().shape({
-        releaseName: nameValidationSchema,
+        releaseName: nameValidationSchema(t),
       });
     case HelmActionType.Upgrade:
       return yup.object().shape({
