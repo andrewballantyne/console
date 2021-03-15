@@ -3,16 +3,17 @@ import { validationSchema } from '../validation-utils';
 import { initialPipelineFormData, TASK_ERROR_STRINGS, TaskErrorType } from '../const';
 import {
   createSafeTask,
+  embeddedTaskSpec,
   externalTaskNoDefaultParam,
   externalTaskWitEmptyDefaultParam,
   externalTaskWithDefaultParam,
   formDataBasicPassState,
+  hasError,
   hasResults,
-  embeddedTaskSpec,
+  resourceTask,
   shouldHaveFailed,
   shouldHavePassed,
   withFormData,
-  resourceTask,
   workspaceTask,
 } from './validation-utils-data';
 
@@ -29,10 +30,9 @@ describe('Pipeline Build validation schema', () => {
           formData: initialPipelineFormData,
         })
         .then(shouldHaveFailed)
-        .catch((error) => {
-          expect(error.path).toBe('editorType');
-          expect(error.message).toBe('editorType must be one of the following values: form, yaml');
-        });
+        .catch(
+          hasError('editorType', 'editorType must be one of the following values: form, yaml'),
+        );
     });
 
     it('should fail initial values because there are no tasks', async () => {
@@ -43,10 +43,7 @@ describe('Pipeline Build validation schema', () => {
           formData: initialPipelineFormData,
         })
         .then(shouldHaveFailed)
-        .catch((error) => {
-          expect(error.path).toBe('formData.tasks');
-          expect(error.message).toBe('Must define at least one task');
-        });
+        .catch(hasError('formData.tasks', 'Must define at least one task'));
     });
   });
 
@@ -64,12 +61,12 @@ describe('Pipeline Build validation schema', () => {
         tasks: [createSafeTask()],
       })
         .then(shouldHaveFailed)
-        .catch((error) => {
-          expect(error.path).toBe('formData.name');
-          expect(error.message).toBe(
+        .catch(
+          hasError(
+            'formData.name',
             'Name must consist of lower-case letters, numbers and hyphens. It must start with a letter and end with a letter or number.',
-          );
-        });
+          ),
+        );
     });
 
     it('should fail if not provided a param name', async () => {
@@ -78,10 +75,7 @@ describe('Pipeline Build validation schema', () => {
         params: [{ noName: 'string' }],
       })
         .then(shouldHaveFailed)
-        .catch((error) => {
-          expect(error.path).toBe('formData.params[0].name');
-          expect(error.message).toBe(requiredMessage);
-        });
+        .catch(hasError('formData.params[0].name', requiredMessage));
     });
 
     it('should pass even if params default and description are empty', async () => {
@@ -122,12 +116,12 @@ describe('Pipeline Build validation schema', () => {
         resources: [{ name: 'invalid', type: 'not a type' }],
       })
         .then(shouldHaveFailed)
-        .catch((error) => {
-          expect(error.path).toBe('formData.resources[0].type');
-          expect(error.message).toBe(
+        .catch(
+          hasError(
+            'formData.resources[0].type',
             'formData.resources[0].type must be one of the following values: git, image, cluster, storage',
-          );
-        });
+          ),
+        );
     });
 
     it('should pass when provided with a valid workspace name', async () => {
@@ -145,10 +139,7 @@ describe('Pipeline Build validation schema', () => {
         workspaces: [{ notName: 'not-valid' }],
       })
         .then(shouldHaveFailed)
-        .catch((error) => {
-          expect(error.path).toBe('formData.workspaces[0].name');
-          expect(error.message).toBe(requiredMessage);
-        });
+        .catch(hasError('formData.workspaces[0].name', requiredMessage));
     });
   });
 
@@ -159,10 +150,9 @@ describe('Pipeline Build validation schema', () => {
         tasks: [{ name: 'test' }],
       })
         .then(shouldHaveFailed)
-        .catch((error) => {
-          expect(error.path).toBe('formData.tasks[0]');
-          expect(error.message).toBe('pipelines-plugin~TaskSpec or TaskRef must be provided');
-        });
+        .catch(
+          hasError('formData.tasks[0]', 'pipelines-plugin~TaskSpec or TaskRef must be provided'),
+        );
     });
 
     it('should pass if provided a taskSpec and name', async () => {
@@ -180,10 +170,7 @@ describe('Pipeline Build validation schema', () => {
         tasks: [{ name: 'test', taskRef: {} }],
       })
         .then(shouldHaveFailed)
-        .catch((error) => {
-          expect(error.path).toBe('formData.tasks[0].taskRef.name');
-          expect(error.message).toBe(requiredMessage);
-        });
+        .catch(hasError('formData.tasks[0].taskRef.name', requiredMessage));
     });
 
     it('should pass if provided with a proper taskRef and name', async () => {
@@ -202,12 +189,12 @@ describe('Pipeline Build validation schema', () => {
           tasks: [{ name: 'test', runAfter: 'not-an-array', taskRef: { name: 'external-task' } }],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].runAfter');
-            expect(error.message).toEqual(
+          .catch(
+            hasError(
+              'formData.tasks[0].runAfter',
               expect.stringContaining('formData.tasks[0].runAfter must be a `array` type'),
-            );
-          });
+            ),
+          );
       });
 
       it('should fail if runAfter is an array of strings that do not match other tasks', async () => {
@@ -218,10 +205,7 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].runAfter');
-            expect(error.message).toBe('failed runAfter');
-          });
+          .catch(hasError('formData.tasks[0].runAfter', 'failed runAfter'));
       });
 
       it('should pass if runAfter is an array of strings that match other task names', async () => {
@@ -250,10 +234,7 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.listTasks[1].runAfter');
-            expect(error.message).toBe('failed runAfter');
-          });
+          .catch(hasError('formData.listTasks[1].runAfter', 'failed runAfter'));
       });
 
       it('should fail if runAfter is itself', async () => {
@@ -264,10 +245,7 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].runAfter');
-            expect(error.message).toBe('failed runAfter');
-          });
+          .catch(hasError('formData.tasks[0].runAfter', 'failed runAfter'));
       });
 
       it('should pass if runAfter is an array of strings that match listTasks or tasks names', async () => {
@@ -302,10 +280,12 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].params[0].value');
-            expect(error.message).toBe(requiredMessage);
-          });
+          .catch(
+            hasError(
+              'formData.tasks[0].params',
+              TASK_ERROR_STRINGS[TaskErrorType.MISSING_REQUIRED_PARAMS],
+            ),
+          );
       });
 
       it('should pass if task params has no value but the task has a default', async () => {
@@ -369,10 +349,12 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].resources');
-            expect(error.message).toBe(TASK_ERROR_STRINGS[TaskErrorType.MISSING_RESOURCES]);
-          });
+          .catch(
+            hasError(
+              'formData.tasks[0].resources',
+              TASK_ERROR_STRINGS[TaskErrorType.MISSING_RESOURCES],
+            ),
+          );
       });
 
       it('should fail if the task does not fully include the required resources', async () => {
@@ -391,10 +373,12 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].resources');
-            expect(error.message).toBe(TASK_ERROR_STRINGS[TaskErrorType.MISSING_RESOURCES]);
-          });
+          .catch(
+            hasError(
+              'formData.tasks[0].resources',
+              TASK_ERROR_STRINGS[TaskErrorType.MISSING_RESOURCES],
+            ),
+          );
       });
 
       it('should fail if the task contains some of the required resources', async () => {
@@ -414,10 +398,12 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].resources');
-            expect(error.message).toBe(TASK_ERROR_STRINGS[TaskErrorType.MISSING_RESOURCES]);
-          });
+          .catch(
+            hasError(
+              'formData.tasks[0].resources',
+              TASK_ERROR_STRINGS[TaskErrorType.MISSING_RESOURCES],
+            ),
+          );
       });
 
       it('should fail early if the task contains some of the required resources and is the wrong type', async () => {
@@ -437,10 +423,12 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].resources');
-            expect(error.message).toBe(TASK_ERROR_STRINGS[TaskErrorType.MISSING_RESOURCES]);
-          });
+          .catch(
+            hasError(
+              'formData.tasks[0].resources',
+              TASK_ERROR_STRINGS[TaskErrorType.MISSING_RESOURCES],
+            ),
+          );
       });
 
       it('should pass if the task contains all of the required resources', async () => {
@@ -486,10 +474,12 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].resources.outputs[0].resource');
-            expect(error.message).toBe('Resource type has changed, reselect');
-          });
+          .catch(
+            hasError(
+              'formData.tasks[0].resources.outputs[0].resource',
+              'Resource type has changed, reselect',
+            ),
+          );
       });
 
       it('should fail if the task contains all the required resources but a mismatch in name occurs', async () => {
@@ -512,10 +502,12 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].resources.inputs[0].resource');
-            expect(error.message).toBe('Resource name has changed, reselect');
-          });
+          .catch(
+            hasError(
+              'formData.tasks[0].resources.inputs[0].resource',
+              'Resource name has changed, reselect',
+            ),
+          );
       });
     });
 
@@ -532,10 +524,12 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].workspaces');
-            expect(error.message).toBe(TASK_ERROR_STRINGS[TaskErrorType.MISSING_WORKSPACES]);
-          });
+          .catch(
+            hasError(
+              'formData.tasks[0].workspaces',
+              TASK_ERROR_STRINGS[TaskErrorType.MISSING_WORKSPACES],
+            ),
+          );
       });
 
       it('should fail if the task contains some of the required workspaces', async () => {
@@ -552,10 +546,12 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].workspaces');
-            expect(error.message).toBe(TASK_ERROR_STRINGS[TaskErrorType.MISSING_WORKSPACES]);
-          });
+          .catch(
+            hasError(
+              'formData.tasks[0].workspaces',
+              TASK_ERROR_STRINGS[TaskErrorType.MISSING_WORKSPACES],
+            ),
+          );
       });
 
       it('should pass if the task contains all the required workspaces', async () => {
@@ -595,10 +591,12 @@ describe('Pipeline Build validation schema', () => {
           ],
         })
           .then(shouldHaveFailed)
-          .catch((error) => {
-            expect(error.path).toBe('formData.tasks[0].workspaces[0].workspace');
-            expect(error.message).toBe('Workspace name has changed, reselect');
-          });
+          .catch(
+            hasError(
+              'formData.tasks[0].workspaces[0].workspace',
+              'Workspace name has changed, reselect',
+            ),
+          );
       });
     });
   });

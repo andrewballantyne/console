@@ -9,9 +9,9 @@ import { TASK_ERROR_STRINGS } from './const';
 import { GetErrorMessage, PipelineBuilderFormValues, PipelineBuilderTaskResources } from './types';
 
 export const getTopLevelErrorMessage: GetErrorMessage = (errors) => (taskIndex) => {
-  const taskError = Object.values(errors[taskIndex] || {})[0] as string;
+  const taskErrors = Object.values(errors[taskIndex] || {}) as string[];
   // We only want a specific set of top-level error messages
-  return Object.values(TASK_ERROR_STRINGS).includes(taskError) ? taskError : null;
+  return Object.values(TASK_ERROR_STRINGS).find((value) => taskErrors.includes(value));
 };
 
 export const findTask = (

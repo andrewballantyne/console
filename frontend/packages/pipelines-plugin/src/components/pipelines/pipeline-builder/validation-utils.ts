@@ -15,6 +15,7 @@ import {
   PipelineTaskResource,
   PipelineTask,
   PipelineTaskWorkspace,
+  PipelineTaskParam,
 } from '../../../types';
 import { PipelineResourceType } from '../const';
 
@@ -34,24 +35,33 @@ const getTask = (
   return findTask({ namespacedTasks, clusterTasks }, taskRef);
 };
 
-const isParamNullable = (
+const areRequiredParamsAdded = (
   formValues: PipelineBuilderFormYamlValues,
-  path: string,
-  paramName: string,
+  taskRef: PipelineTaskRef,
+  params: PipelineTaskParam[] = [],
 ): boolean => {
-  const task = getTask(formValues, path);
+  const {
+    formData: { namespacedTasks, clusterTasks },
+  } = formValues;
+
+  const task = findTask({ namespacedTasks, clusterTasks }, taskRef);
   if (!task) {
     // No task, means we don't know if the param is nullable, so pass the test
     return true;
   }
 
-  const taskParam = getTaskParameters(task).find(({ name }) => name === paramName);
-  if (!taskParam) {
-    // Extra metadata -- param is unknown so we don't want to fail; upstream can handle extra useless data
+  const requiredTaskParams = getTaskParameters(task).filter(taskParamIsRequired);
+  if (requiredTaskParams.length === 0) {
+    // No required params, no issue
     return true;
   }
 
-  return !taskParamIsRequired(taskParam);
+  return requiredTaskParams.some(
+    (requiredParam) =>
+      !params.some(
+        (addedParam) => addedParam.name === requiredParam.name && addedParam.value == null,
+      ),
+  );
 };
 
 const runAfterMatches = (
@@ -129,11 +139,6 @@ const isWorkspacesRequired = (
   taskRef: PipelineTaskRef,
   taskWorkspaces?: PipelineTaskWorkspace[],
 ) => {
-  if (!taskRef?.name) {
-    // No task to reference, unsure if they are required; pass
-    return true;
-  }
-
   const {
     formData: { namespacedTasks, clusterTasks },
   } = formValues;
@@ -224,28 +229,26 @@ const pipelineBuilderFormSchema = (formValues: PipelineBuilderFormYamlValues, t:
               .default(undefined),
             taskSpec: yup.object(), // TODO: support TaskSpec
             runAfter: validRunAfter,
-            params: yup.array().of(
-              yup.object({
-                name: yup.string().required(t('pipelines-plugin~Required')),
-                value: yup.lazy((value) => {
-                  if (Array.isArray(value)) {
-                    return yup.array().of(yup.string().required(t('pipelines-plugin~Required')));
-                  }
-                  return yup
-                    .string()
-                    .test('is-param-optional', t('pipelines-plugin~Required'), function(
-                      paramValue?: string,
-                    ) {
-                      if (paramValue == null) {
-                        // Param is empty -- check to see if it's required by the Task
-                        return isParamNullable(formValues, this.path, this.parent.name);
-                      }
-
-                      return true;
-                    });
+            params: yup
+              .array()
+              .of(
+                yup.object({
+                  name: yup.string().required(t('pipelines-plugin~Required')),
+                  value: yup.lazy((value) => {
+                    if (Array.isArray(value)) {
+                      return yup.array().of(yup.string().required(t('pipelines-plugin~Required')));
+                    }
+                    return yup.string();
+                  }),
                 }),
-              }),
-            ),
+              )
+              .test(
+                'is-param-optional',
+                TASK_ERROR_STRINGS[TaskErrorType.MISSING_REQUIRED_PARAMS],
+                function(params?: PipelineTaskParam[]) {
+                  return areRequiredParamsAdded(formValues, this.parent.taskRef, params);
+                },
+              ),
             resources: yup
               .object({
                 inputs: resourceDefinition,
@@ -314,6 +317,6 @@ export const validationSchema = (t: TFunction) =>
         formData: pipelineBuilderFormSchema(formValues, t),
       });
 
-      return formYamlDefinition.validate(formValues);
+      return formYamlDefinition.validate(formValues, { abortEarly: false });
     },
   });

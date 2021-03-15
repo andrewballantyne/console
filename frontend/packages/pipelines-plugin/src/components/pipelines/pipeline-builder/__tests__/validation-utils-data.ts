@@ -111,6 +111,14 @@ export const workspaceTask = externalTaskWithWorkspacesTemplate;
 // Helper test methods for .then/.catch invocations
 export const hasResults = (results) => expect(results).toBeTruthy(); // success for .then
 export const shouldHaveFailed = (success) => expect(success).toBe('should have failed'); // failure for .then
+export const hasError = (yupPath: string, errorMessage: string) => (error) => {
+  const errors: { path: string; message: string }[] = error.inner.map((err) => ({
+    path: err.path,
+    message: err.message,
+  }));
+  const expectedError = { path: yupPath, message: errorMessage };
+  expect(errors).toEqual(expect.arrayContaining([expect.objectContaining(expectedError)]));
+};
 export const shouldHavePassed = (err) => expect(err).toBe('should not have this error'); // failure for .catch
 
 const t = jest.fn((f) => f);
