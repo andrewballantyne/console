@@ -125,7 +125,7 @@ const commonPipelineSchema = () =>
       yup.object().shape({
         name: yup.string().required(i18next.t('pipelines-plugin~Required')),
         description: yup.string(),
-        default: yup.string().required(i18next.t('pipelines-plugin~Required')),
+        default: yup.string(),
       }),
     ),
     resources: formResources(),
