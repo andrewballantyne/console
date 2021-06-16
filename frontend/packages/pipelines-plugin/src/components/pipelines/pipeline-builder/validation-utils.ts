@@ -236,7 +236,7 @@ const runAfterMatches = (
  *
  * Note: Expects to be in an object of { name: string(), runAfter: thisFunction(...), ... }
  */
-const validRunAfter = (formValues: PipelineBuilderFormYamlValues) => {
+export const validRunAfter = (formValues: PipelineBuilderFormYamlValues) => {
   return yup
     .array()
     .of(yup.string())

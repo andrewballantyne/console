@@ -10,18 +10,23 @@ import RadioGroupField from './RadioGroupField';
 
 import './SyncedEditorField.scss';
 
-type EditorContext = {
+export type SanitizeToForm<YAMLStruct = {}, FormOutput = {}> = (
+  preFormData: YAMLStruct,
+) => Promise<FormOutput | (() => FormOutput)> | (FormOutput | (() => FormOutput));
+export type SanitizeToYAML = (preFormData: string) => string;
+
+type EditorContext<SanitizeTo> = {
   name: string;
   editor: React.ReactNode;
   isDisabled?: boolean;
-  sanitizeTo?: (preFormData: any) => any;
+  sanitizeTo?: SanitizeTo;
   label?: string;
 };
 
 type SyncedEditorFieldProps = {
   name: string;
-  formContext: EditorContext;
-  yamlContext: EditorContext;
+  formContext: EditorContext<SanitizeToForm>;
+  yamlContext: EditorContext<SanitizeToYAML>;
   noMargin?: boolean;
 };
 
@@ -35,27 +40,44 @@ const SyncedEditorField: React.FC<SyncedEditorFieldProps> = ({
   const { values, setFieldValue } = useFormikContext<FormikValues>();
   const { t } = useTranslation();
 
-  const formData = _.get(values, formContext.name);
-  const yamlData = _.get(values, yamlContext.name);
+  const formData: string = _.get(values, formContext.name);
+  const yamlData: string = _.get(values, yamlContext.name);
 
   const [yamlWarning, setYAMLWarning] = React.useState<boolean>(false);
+  const [sanitizeToCallback, setSanitizeToCallback] = React.useState(undefined);
   const [disabledFormAlert, setDisabledFormAlert] = React.useState<boolean>(formContext.isDisabled);
 
   const changeEditorType = (newType: EditorType): void => {
     setFieldValue(name, newType);
   };
 
-  const handleToggleToForm = () => {
-    const newFormData = safeYAMLToJS(yamlData);
-    if (!_.isEmpty(newFormData)) {
-      changeEditorType(EditorType.Form);
-      setFieldValue(
-        formContext.name,
-        formContext.sanitizeTo ? formContext.sanitizeTo(newFormData) : newFormData,
-      );
-    } else {
-      setYAMLWarning(true);
+  const handleToggleToForm = async () => {
+    // Convert from YAML
+    let content = safeYAMLToJS(yamlData);
+
+    // Sanitize the YAML structure if possible
+    if (!_.isEmpty(content)) {
+      if (formContext.sanitizeTo) {
+        try {
+          content = await formContext.sanitizeTo(content);
+        } catch (e) {
+          // Failed to sanitize, discard invalid data
+          content = null;
+        }
+      }
+
+      // Handle sanitized result
+      if (typeof content === 'object' && !_.isEmpty(content)) {
+        setFieldValue(formContext.name, content);
+        changeEditorType(EditorType.Form);
+        return;
+      }
+      if (typeof content === 'function') {
+        setSanitizeToCallback(content);
+      }
     }
+
+    setYAMLWarning(true);
   };
 
   const handleToggleToYAML = () => {
@@ -69,6 +91,9 @@ const SyncedEditorField: React.FC<SyncedEditorFieldProps> = ({
 
   const onClickYAMLWarningConfirm = () => {
     setYAMLWarning(false);
+    if (sanitizeToCallback) {
+      setFieldValue(formContext.name, sanitizeToCallback);
+    }
     changeEditorType(EditorType.Form);
   };
 
