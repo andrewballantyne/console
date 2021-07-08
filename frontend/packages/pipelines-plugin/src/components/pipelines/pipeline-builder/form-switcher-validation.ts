@@ -3,11 +3,7 @@ import { safeJSToYAML } from '@console/shared/src/utils/yaml';
 import { PipelineKind } from '../../../types';
 import { initialPipelineFormData } from './const';
 import { pipelineBuilderYAMLSchema } from './switch-to-form-validation-utils';
-import {
-  PipelineBuilderFormikValues,
-  PipelineBuilderFormValues,
-  PipelineBuilderFormYamlValues,
-} from './types';
+import { PipelineBuilderFormValues } from './types';
 import { convertBuilderFormToPipeline } from './utils';
 
 export const getFormData = (
@@ -23,58 +19,63 @@ export const getFormData = (
     finallyTasks,
   };
 };
-export const validateFormData = (
-  prevValues: PipelineBuilderFormikValues,
+export const validateFormData = async (
   newFormData: PipelineBuilderFormValues,
   yamlPipeline: PipelineKind,
 ) => {
-  const newValues: PipelineBuilderFormYamlValues = { ...prevValues, formData: newFormData };
-  return pipelineBuilderYAMLSchema(newValues).validate(yamlPipeline, {
+  return pipelineBuilderYAMLSchema(newFormData).validate(yamlPipeline, {
     abortEarly: false,
     strict: true,
   });
 };
-export const safeOmit = (object, path) => {
-  const acc = _.omit(object, path);
-  const pathComponents = path.split('.');
-  const objectKeys = Object.keys(acc[pathComponents[0]]);
-  const objectKey = objectKeys.find((key) =>
-    pathComponents[pathComponents.length - 1].startsWith(key),
-  );
-  const omittedObjectContainerPath = [
-    pathComponents.slice(0, pathComponents.length - 1),
-    objectKey,
-  ].join('.');
-  const omittedObjectContainer = _.get(acc, omittedObjectContainerPath, undefined);
-  return Array.isArray(omittedObjectContainer)
-    ? _.set(acc, omittedObjectContainerPath, _.filter(omittedObjectContainer))
-    : acc;
+export const safeOmit = (object: PipelineKind, path: string): PipelineKind => {
+  // Check if it's a `path.to.array[#]`
+  const match = path.match(/(.*)\[(\d+)\]$/);
+  if (match) {
+    const [, pathToArray, index] = match;
+    if (pathToArray && index) {
+      return _.update(object, pathToArray, (array) => {
+        array.splice(index, 1);
+        return array;
+      });
+    }
+  }
+  return _.omit(object, path);
 };
 
-export const handleSanitizeToFormError = (
-  prevValues: PipelineBuilderFormikValues,
+export const handleSanitizeToFormError = async (
   formData: PipelineBuilderFormValues,
   error: any,
   yamlPipeline: PipelineKind,
 ) => {
-  const paths: string[] = error?.inner?.map((err) => err.path);
-  const validatedYamlData: PipelineKind = paths.reduce((acc, currPath) => {
-    const pathComponents = currPath.split('.');
-    const lastPathItem: string = pathComponents[pathComponents.length - 1];
-    switch (lastPathItem) {
-      case 'name': {
-        const path = pathComponents.slice(0, pathComponents.length - 1).join('.');
-        return safeOmit(acc, path);
+  const paths: string[] = error?.inner?.map((err) => err.path) || [];
+  const validatedYamlData: PipelineKind = paths.reduce(
+    (acc: PipelineKind, pathOrPaths: string | string[]) => {
+      const processPath = (pipeline: PipelineKind, currPath: string) => {
+        const pathComponents = currPath.split('.');
+        const lastPathItem: string = pathComponents[pathComponents.length - 1];
+        switch (lastPathItem) {
+          case 'name': {
+            const namePath = pathComponents.slice(0, pathComponents.length - 1).join('.');
+            return safeOmit(pipeline, namePath);
+          }
+          case 'runAfter':
+          default:
+            return safeOmit(pipeline, currPath);
+        }
+      };
+
+      if (Array.isArray(pathOrPaths)) {
+        return pathOrPaths.reduce(processPath, acc);
       }
-      case 'runAfter':
-        return safeOmit(acc, currPath);
-      default:
-        return safeOmit(acc, currPath);
-    }
-  }, yamlPipeline);
+
+      return processPath(acc, pathOrPaths);
+    },
+    yamlPipeline,
+  );
   const validatedFormData = getFormData(formData, validatedYamlData);
   try {
-    validateFormData(prevValues, formData, validatedYamlData);
+    await validateFormData(formData, validatedYamlData);
   } catch (err) {
     return undefined;
   }
@@ -82,15 +83,16 @@ export const handleSanitizeToFormError = (
 };
 
 export const sanitizeToForm = async (
-  values: PipelineBuilderFormikValues,
   formData: PipelineBuilderFormValues,
   yamlPipeline: PipelineKind,
 ) => {
   const newFormData: PipelineBuilderFormValues = getFormData(formData, yamlPipeline);
   try {
-    await validateFormData(values, newFormData, yamlPipeline);
+    await validateFormData(newFormData, yamlPipeline);
   } catch (error) {
-    return () => handleSanitizeToFormError(values, newFormData, error, yamlPipeline);
+    const safeReturn =
+      (await handleSanitizeToFormError(newFormData, error, yamlPipeline)) || formData;
+    return () => safeReturn;
   }
   return _.merge({}, initialPipelineFormData, newFormData);
 };
@@ -98,7 +100,7 @@ export const sanitizeToForm = async (
 export const sanitizeToYaml = (
   formData: PipelineBuilderFormValues,
   namespace: string,
-  existingPipeline: PipelineKind,
+  existingPipeline?: PipelineKind,
 ) =>
   safeJSToYAML(convertBuilderFormToPipeline(formData, namespace, existingPipeline), 'yamlData', {
     skipInvalid: true,

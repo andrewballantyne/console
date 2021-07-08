@@ -134,7 +134,7 @@ const PipelineBuilderForm: React.FC<PipelineBuilderFormProps> = (props) => {
                   editor: formEditor,
                   label: t('pipelines-plugin~Pipeline builder'),
                   sanitizeTo: (yamlPipeline: PipelineKind) =>
-                    sanitizeToForm(props.values, formData, yamlPipeline),
+                    sanitizeToForm(formData, yamlPipeline),
                 }}
                 yamlContext={{
                   name: 'yamlData',

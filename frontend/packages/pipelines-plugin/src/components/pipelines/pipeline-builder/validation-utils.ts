@@ -18,7 +18,7 @@ import { paramIsRequired } from '../../../utils/common';
 import { PipelineResourceType } from '../const';
 import { getTaskParameters, getTaskResources } from '../resource-utils';
 import { getTaskErrorString, TaskErrorType } from './const';
-import { PipelineBuilderFormYamlValues, TaskType } from './types';
+import { PipelineBuilderFormValues, PipelineBuilderFormYamlValues, TaskType } from './types';
 import { findTaskFromFormikData } from './utils';
 
 /**
@@ -210,8 +210,8 @@ const hasRequiredWorkspaces = (
 /**
  * Checks to make sure all runAfter values are task/listTask names.
  */
-const runAfterMatches = (
-  formValues: PipelineBuilderFormYamlValues,
+export const runAfterMatches = (
+  formData: PipelineBuilderFormValues,
   runAfter: string[],
   thisTaskName: string,
 ): boolean => {
@@ -224,9 +224,7 @@ const runAfterMatches = (
     return false;
   }
 
-  const {
-    formData: { tasks, listTasks },
-  } = formValues;
+  const { tasks, listTasks } = formData;
   const taskNames = tasks.map((t) => t.name).concat(listTasks.map((t) => t.name));
   return !runAfter.some((name) => !taskNames.includes(name));
 };
@@ -236,14 +234,14 @@ const runAfterMatches = (
  *
  * Note: Expects to be in an object of { name: string(), runAfter: thisFunction(...), ... }
  */
-export const validRunAfter = (formValues: PipelineBuilderFormYamlValues) => {
+const validRunAfter = (formValues: PipelineBuilderFormYamlValues) => {
   return yup
     .array()
     .of(yup.string())
     .test('tasks-matches-runAfters', i18n.t('pipelines-plugin~Invalid runAfter'), function(
       runAfter: string[],
     ) {
-      return runAfterMatches(formValues, runAfter, this.parent.name);
+      return runAfterMatches(formValues.formData, runAfter, this.parent.name);
     });
 };
 

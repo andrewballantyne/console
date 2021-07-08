@@ -10,9 +10,11 @@ import RadioGroupField from './RadioGroupField';
 
 import './SyncedEditorField.scss';
 
+type FormErrorCallback<ReturnValue = {}> = () => ReturnValue;
+type WithOrWithoutPromise<Type> = Promise<Type> | Type;
 export type SanitizeToForm<YAMLStruct = {}, FormOutput = {}> = (
   preFormData: YAMLStruct,
-) => Promise<FormOutput | (() => FormOutput)> | (FormOutput | (() => FormOutput));
+) => WithOrWithoutPromise<FormOutput | FormErrorCallback<FormOutput>>;
 export type SanitizeToYAML = (preFormData: string) => string;
 
 type EditorContext<SanitizeTo> = {
@@ -73,7 +75,7 @@ const SyncedEditorField: React.FC<SyncedEditorFieldProps> = ({
         return;
       }
       if (typeof content === 'function') {
-        setSanitizeToCallback(content);
+        setSanitizeToCallback(() => content);
       }
     }
 
@@ -92,7 +94,7 @@ const SyncedEditorField: React.FC<SyncedEditorFieldProps> = ({
   const onClickYAMLWarningConfirm = () => {
     setYAMLWarning(false);
     if (sanitizeToCallback) {
-      setFieldValue(formContext.name, sanitizeToCallback);
+      setFieldValue(formContext.name, sanitizeToCallback());
     }
     changeEditorType(EditorType.Form);
   };

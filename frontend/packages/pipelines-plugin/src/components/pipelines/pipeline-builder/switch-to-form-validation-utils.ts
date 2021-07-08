@@ -2,8 +2,8 @@ import i18n from 'i18next';
 import * as yup from 'yup';
 import { nameValidationSchema } from '@console/shared';
 import { PipelineTask } from '../../../types';
-import { PipelineBuilderFormYamlValues } from './types';
-import { validRunAfter } from './validation-utils';
+import { PipelineBuilderFormValues } from './types';
+import { runAfterMatches } from './validation-utils';
 
 const resourceDefinitionYAML = () => {
   return yup.array().of(
@@ -14,7 +14,7 @@ const resourceDefinitionYAML = () => {
   );
 };
 
-const taskValidationYAMLSchema = (formValues: PipelineBuilderFormYamlValues) => {
+const taskValidationYAMLSchema = (formData: PipelineBuilderFormValues) => {
   return yup.array().of(
     yup
       .object({
@@ -26,7 +26,37 @@ const taskValidationYAMLSchema = (formValues: PipelineBuilderFormYamlValues) => 
           })
           .default(undefined),
         taskSpec: yup.object(),
-        runAfter: validRunAfter(formValues),
+        runAfter: yup
+          .array()
+          .of(yup.string())
+          .test(function(runAfters: string[]) {
+            if (!runAfters) return true; // ignore no runAfters
+
+            const taskName = this.parent.name;
+            const rootPath = this.path;
+
+            // Find all the invalid indexes for the runAfters
+            const indexes: number[] = runAfters.reduce(
+              (indexAcc: number[], runAfter: string, index: number) => {
+                const validRunAfter = runAfterMatches(formData, [runAfter], taskName);
+                if (!validRunAfter) {
+                  return [...indexAcc, index];
+                }
+                return indexAcc;
+              },
+              [],
+            );
+            if (indexes.length > 0) {
+              return this.createError({
+                path:
+                  indexes.length > 1
+                    ? indexes.map((index) => `${rootPath}[${index}]`)
+                    : `${rootPath}[${indexes[0]}]`,
+                message: i18n.t('pipelines-plugin~Invalid runAfter'),
+              });
+            }
+            return true;
+          }),
         params: yup.array().of(
           yup.object({
             name: yup.string(),
@@ -67,7 +97,7 @@ const taskValidationYAMLSchema = (formValues: PipelineBuilderFormYamlValues) => 
   );
 };
 
-export const pipelineBuilderYAMLSchema = (formValues: PipelineBuilderFormYamlValues) => {
+export const pipelineBuilderYAMLSchema = (formData: PipelineBuilderFormValues) => {
   return yup.object({
     metadata: yup.object({ name: yup.string() }),
     spec: yup.object({
@@ -89,8 +119,8 @@ export const pipelineBuilderYAMLSchema = (formValues: PipelineBuilderFormYamlVal
           name: yup.string(),
         }),
       ),
-      tasks: taskValidationYAMLSchema(formValues),
-      finally: taskValidationYAMLSchema(formValues),
+      tasks: taskValidationYAMLSchema(formData),
+      finally: taskValidationYAMLSchema(formData),
     }),
   });
 };
