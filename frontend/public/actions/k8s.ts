@@ -1,17 +1,6 @@
-import * as _ from 'lodash-es';
-import { Dispatch } from 'react-redux';
 import { ActionType as Action, action } from 'typesafe-actions';
-import { checkAccess } from '@console/internal/components/utils/rbac';
-
-import {
-  cacheResources,
-  getResources as getResources_,
-  DiscoveryResources,
-} from '../module/k8s/get-resources';
-import { K8sResourceKind, fetchSwagger } from '../module/k8s';
-import { makeReduxID } from '../components/utils/k8s-watcher';
-import { CustomResourceDefinitionModel } from '../models';
-import { watchK8sList } from '@console/dynamic-plugin-sdk/src/app/k8s/actions/k8s';
+import { startAPIDiscovery } from '@console/dynamic-plugin-sdk/src/app/k8s/actions/apiDiscovery';
+import { DiscoveryResources } from '../module/k8s/get-resources';
 
 export {
   watchK8sObject,
@@ -19,75 +8,15 @@ export {
   stopK8sWatch,
 } from '@console/dynamic-plugin-sdk/src/app/k8s/actions/k8s';
 
+/* TODO: Remaining items moved by HAC-374 */
 export enum ActionType {
   ReceivedResources = 'resources',
   GetResourcesInFlight = 'getResourcesInFlight',
 }
 
-export const API_DISCOVERY_POLL_INTERVAL = 60000;
-
-const POLLs = {};
-const apiDiscovery = 'apiDiscovery';
-
-type K8sEvent = { type: 'ADDED' | 'DELETED' | 'MODIFIED'; object: K8sResourceKind };
-
 export const receivedResources = (resources: DiscoveryResources) =>
   action(ActionType.ReceivedResources, { resources });
 export const getResourcesInFlight = () => action(ActionType.GetResourcesInFlight);
-
-export const getResources = () => (dispatch: Dispatch) => {
-  dispatch(getResourcesInFlight());
-
-  getResources_()
-    .then((resources) => {
-      // Cache the resources whenever discovery completes to improve console load times.
-      cacheResources(resources);
-      dispatch(receivedResources(resources));
-    })
-    // eslint-disable-next-line no-console
-    .catch((err) => console.error(err))
-    .finally(() => {
-      setTimeout(fetchSwagger, 10000);
-    });
-};
-
-export const startAPIDiscovery = () => (dispatch) => {
-  const reduxID = makeReduxID(CustomResourceDefinitionModel, {});
-  checkAccess({
-    group: CustomResourceDefinitionModel.apiGroup,
-    resource: CustomResourceDefinitionModel.plural,
-    verb: 'list',
-  }).then((res) => {
-    if (res.status.allowed) {
-      // eslint-disable-next-line no-console
-      console.log('API discovery method: Watching');
-      // Watch CRDs and dispatch refreshAPI action whenever an event is received
-      dispatch(
-        watchK8sList(
-          reduxID,
-          {},
-          CustomResourceDefinitionModel,
-          // Only re-run API discovery on added or removed CRDs.
-          (_id: string, events: K8sEvent[]) =>
-            events.some((e) => e.type !== 'MODIFIED') ? getResources() : _.noop,
-        ),
-      );
-    } else {
-      // eslint-disable-next-line no-console
-      console.log('API discovery method: Polling');
-      // Poll API discovery every 30 seconds since we can't watch CRDs
-      dispatch(getResources());
-      if (POLLs[apiDiscovery]) {
-        clearTimeout(POLLs[apiDiscovery]);
-        delete POLLs[apiDiscovery];
-      }
-      POLLs[apiDiscovery] = setTimeout(
-        () => dispatch(startAPIDiscovery()),
-        API_DISCOVERY_POLL_INTERVAL,
-      );
-    }
-  });
-};
 
 const k8sActions = {
   receivedResources,

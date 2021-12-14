@@ -19,8 +19,7 @@ import { ConnectedNotificationDrawer } from './notification-drawer';
 import { Navigation } from './nav';
 import { history, AsyncComponent, LoadingBox } from './utils';
 import * as UIActions from '../actions/ui';
-import { fetchSwagger, getCachedResources } from '../module/k8s';
-import { receivedResources, startAPIDiscovery } from '../actions/k8s';
+import { fetchSwagger } from '../module/k8s';
 import { pluginStore } from '../plugins';
 // cloud shell imports must come later than features
 import CloudShell from '@console/app/src/components/cloud-shell/CloudShell';
@@ -399,17 +398,6 @@ const PollConsoleUpdates = React.memo(() => {
 });
 
 graphQLReady.onReady(() => {
-  // Load cached API resources from localStorage to speed up page load.
-  getCachedResources()
-    .then((resources) => {
-      if (resources) {
-        store.dispatch(receivedResources(resources));
-      }
-      // Still perform discovery to refresh the cache.
-      store.dispatch(startAPIDiscovery());
-    })
-    .catch(() => store.dispatch(startAPIDiscovery()));
-
   store.dispatch(detectFeatures());
 
   // Global timer to ensure all <Timestamp> components update in sync

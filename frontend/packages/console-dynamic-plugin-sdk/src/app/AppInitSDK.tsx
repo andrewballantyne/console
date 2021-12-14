@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Provider } from 'react-redux';
+import InitK8s from './InitK8s';
 import { useReduxStore } from './useReduxStore';
 
 type AppInitSDKProps = {
@@ -26,7 +27,8 @@ type AppInitSDKProps = {
  */
 const AppInitSDK: React.FC<AppInitSDKProps> = ({ children }) => {
   const { store, storeContextPresent } = useReduxStore();
-  return !storeContextPresent ? <Provider store={store}>{children}</Provider> : <>{children}</>;
+  const content = <InitK8s>{children}</InitK8s>;
+  return !storeContextPresent ? <Provider store={store}>{content}</Provider> : <>{content}</>;
 };
 
 export default AppInitSDK;
